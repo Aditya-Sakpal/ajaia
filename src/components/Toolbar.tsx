@@ -120,7 +120,7 @@ export function Toolbar({ editor, editable }: { editor: Editor; editable: boolea
           </ToolButton>
         </>
       ) : (
-        <span className="px-2 text-[14px] text-ink-2">Formatting is turned off in view-only mode</span>
+        <span className="px-2 text-[14px] text-ink-2">View only</span>
       )}
       <span className="ml-auto flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-[14px] text-ink-2">
         {editable ? <Pencil className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}

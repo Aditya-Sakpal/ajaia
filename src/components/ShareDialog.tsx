@@ -142,7 +142,7 @@ export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, s
               placeholder="Add people by email"
               aria-invalid={error !== null}
               aria-describedby={error ? 'share-error' : undefined}
-              className="h-12 min-w-0 flex-1 rounded border border-[#747775] px-4 text-[16px] placeholder:text-ink-2 focus:border-action focus:outline-2 focus:-outline-offset-2 focus:outline-action"
+              className="h-12 w-full shrink-0 min-w-0 rounded border sm:w-auto sm:flex-1 border-[#747775] px-4 text-[16px] placeholder:text-ink-2 focus:border-action focus:outline-2 focus:-outline-offset-2 focus:outline-action"
             />
             <datalist id="share-suggestions">
               {suggestions.map((u) => (

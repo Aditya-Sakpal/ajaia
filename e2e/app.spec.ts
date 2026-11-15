@@ -1,6 +1,17 @@
 import { expect, test } from '@playwright/test';
 import { asUser, createDoc, deleteDoc, makeDocx, share, signInUI, waitSaved } from './helpers';
 
+const SEED_DOC_IDS = new Set(['00000000-0000-4000-8000-0000000d0c01', '00000000-0000-4000-8000-0000000d0c02']);
+const runStart = new Date(Date.now() - 5_000).toISOString();
+
+// Safety net: delete anything this run created that a failing test left behind (all test docs are Alice's).
+test.afterAll(async ({ browser }) => {
+  const alice = await asUser(browser, 'alice');
+  const { owned } = (await (await alice.request.get('/api/documents')).json()) as { owned: { id: string; updatedAt: string }[] };
+  for (const d of owned) if (!SEED_DOC_IDS.has(d.id) && d.updatedAt >= runStart) await deleteDoc(alice.request, d.id);
+  await alice.context.close();
+});
+
 const stamp = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 test.describe('sign-in', () => {
