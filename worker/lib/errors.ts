@@ -1,6 +1,6 @@
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 
-export type ApiStatus = 400 | 401 | 403 | 404 | 409 | 413;
+export type ApiStatus = 400 | 401 | 403 | 404 | 409 | 413 | 502 | 503;
 
 /** Expected, client-facing failure. Formatted by app.onError as { error: { code, message } }. */
 export class ApiError extends Error {

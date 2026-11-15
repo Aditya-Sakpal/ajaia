@@ -49,7 +49,7 @@ export function ImportTile({ onError }: { onError(message: string | null): void 
         <span id="import-help" className="absolute inset-x-2 bottom-3 text-[12px] leading-4 text-ink-3">
           {IMPORT_TYPES}
           <br />
-          Up to 2 MB
+          Up to 1 MB (.docx up to 2 MB)
         </span>
       </button>
       <p className="mt-2 text-[14px] font-medium text-ink">{busy ? 'Importing…' : 'Import a file'}</p>

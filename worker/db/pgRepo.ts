@@ -4,6 +4,22 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import type { DocJSON, DocumentSummary, Role, Share, User } from '../../shared/types';
 import type { DocumentRecord, Repo, ShareRecord } from './repo';
 import { documents, documentShares, users } from './schema';
+import { withTimeout } from '../lib/timeout';
+
+/** A stuck database call fails with a 503 after this long instead of hanging the request. */
+const QUERY_TIMEOUT_MS = 8000;
+
+/** Wraps every repo method (except close) in the query timeout. */
+function guarded(repo: PgRepo): PgRepo {
+  return new Proxy(repo, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver) as unknown;
+      // Only prototype methods are queries; own fields (the postgres client is itself callable) pass through.
+      if (typeof value !== 'function' || prop === 'close' || prop === 'constructor' || Object.hasOwn(target, prop)) return value;
+      return (...args: unknown[]) => withTimeout(Promise.resolve((value as (...a: unknown[]) => unknown).apply(target, args)), QUERY_TIMEOUT_MS);
+    },
+  });
+}
 
 const userCols = { id: users.id, email: users.email, name: users.name };
 const summaryCols = { id: documents.id, title: documents.title, updatedAt: documents.updatedAt, owner: userCols };
@@ -19,8 +35,8 @@ export class PgRepo implements Repo {
    * (direct to Aiven, max_connections=20) this keeps concurrent requests from exhausting the server.
    */
   static fromConnectionString(url: string): PgRepo {
-    const client = postgres(url, { max: 1, fetch_types: false, connect_timeout: 10 });
-    return new PgRepo(client, drizzle(client));
+    const client = postgres(url, { max: 1, fetch_types: false, connect_timeout: 10, idle_timeout: 5, max_lifetime: 60 });
+    return guarded(new PgRepo(client, drizzle(client)));
   }
 
   async ping(): Promise<void> {
@@ -28,7 +44,7 @@ export class PgRepo implements Repo {
   }
 
   async close(): Promise<void> {
-    await this.client.end({ timeout: 5 });
+    await this.client.end({ timeout: 2 });
   }
 
   async listUsers(): Promise<User[]> {

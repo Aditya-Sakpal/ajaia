@@ -17,7 +17,7 @@ Sign-in is a demo account picker with no passwords. Three users are seeded:
 | Carol Ruiz | `carol@ajaia.test` | Viewer on Bob's notes (read-only) |
 
 1. Sign in as **Alice** and open *Welcome to Ajaia Docs*. Try headings, bold, italic, underline and the two list types. The status next to the title shows *Saving…* and then *Saved*. Refresh the page and the formatting is still there.
-2. Go back to the documents page and choose **Import a file** (`.txt`, `.md` or `.docx`, up to 2 MB). The file opens as a new document.
+2. Go back to the documents page and choose **Import a file** (`.txt` or `.md` up to 1 MB, `.docx` up to 2 MB). The file opens as a new document.
 3. In any document you own, click **Share**, enter `carol@ajaia.test`, choose *Viewer* and click Share.
 4. Open the avatar menu, choose **Switch account** and sign in as **Carol**. The document is listed under *Shared with me* with a *Viewer* badge, and it opens read-only.
 5. Sign in as **Bob** and open *Welcome to Ajaia Docs*. Bob is an editor, so he can change it. Bob cannot delete it or change who has access.
@@ -36,7 +36,7 @@ Sign-in is a demo account picker with no passwords. Three users are seeded:
   | edit / rename | ✅ | ✅ | 403 | 404 |
   | delete, manage sharing | ✅ | 403 | 403 | 404 |
 
-- **Import:** `.txt`, `.md` and `.docx` files up to **2 MB** become new documents. In `.docx` files, headings, bold, italic and lists are kept; **images and tables are dropped**. Scripts and event handlers are stripped from the content.
+- **Import:** `.txt` and `.md` files up to **1 MB** and `.docx` files up to **2 MB** become new documents (`.docx` is compressed, so its converted content still fits the 1 MB document limit). In `.docx` files, headings, bold, italic and lists are kept; **images and tables are dropped**. Scripts and event handlers are stripped from the content.
 - **Losing access while a document is open:** if the owner removes you or deletes the document, your next save shows "You no longer have access to this document" and the editor locks. If you were signed out, or your role changed, you get a specific message instead.
 - **Sessions across tabs:** all tabs share one session cookie. A tab that regains focus checks who is signed in, so switching account in one tab is picked up by the others. Switching account from the editor saves pending edits first.
 - **Failed saves:** the reason is shown (offline, too large, …) with a Retry button, and leaving the page with unsaved changes asks first.
@@ -97,7 +97,7 @@ docs/                  ARCHITECTURE.md, AI_WORKFLOW.md, screenshots
 - No real-time co-editing. Two people editing the same document at once get a conflict prompt, not merged edits.
 - Sign-in is a demo account picker with no passwords or real accounts.
 - No comments, version history, images, tables or export.
-- After a conflict you can only reload; there is no way to keep or merge your unsaved local edits.
+- After a conflict your edits are not merged: you can save them as a copy ("Save my version as a copy") or reload to see the latest version.
 - The Aiven free-tier database may be powered off after long inactivity. If the app shows connection errors, the database needs to be started again.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design decisions and what I would build next, and [docs/AI_WORKFLOW.md](docs/AI_WORKFLOW.md) for how AI was used.

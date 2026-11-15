@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { IMPORT_MAX_BYTES, fileToHtml, titleFromFilename, validateImportFile } from './fileImport';
+import { IMPORT_MAX_BYTES, TEXT_IMPORT_MAX_BYTES, fileToHtml, titleFromFilename, validateImportFile } from './fileImport';
 
 const file = (content: BlobPart, name: string, type = '') => new File([content], name, { type });
 
@@ -9,8 +9,14 @@ describe('validateImportFile', () => {
     expect(validateImportFile(file('x', 'report.pdf'))).toBe('Only .txt, .md and .docx files are supported.');
     expect(validateImportFile(file('x', 'noextension'))).toBe('Only .txt, .md and .docx files are supported.');
   });
-  it('rejects files over 2 MB', () => {
-    expect(validateImportFile(file(new Uint8Array(IMPORT_MAX_BYTES + 1), 'big.txt'))).toBe('File is larger than 2 MB.');
+  it('limits .txt and .md to 1 MB (the converted document must fit the 1 MB save limit)', () => {
+    expect(validateImportFile(file(new Uint8Array(TEXT_IMPORT_MAX_BYTES + 1), 'big.txt'))).toBe('File is larger than 1 MB.');
+    expect(validateImportFile(file(new Uint8Array(TEXT_IMPORT_MAX_BYTES + 1), 'big.md'))).toBe('File is larger than 1 MB.');
+    expect(validateImportFile(file(new Uint8Array(TEXT_IMPORT_MAX_BYTES), 'ok.txt'))).toBeNull();
+  });
+  it('allows .docx up to 2 MB (it is compressed)', () => {
+    expect(validateImportFile(file(new Uint8Array(TEXT_IMPORT_MAX_BYTES + 1), 'mid.docx'))).toBeNull();
+    expect(validateImportFile(file(new Uint8Array(IMPORT_MAX_BYTES + 1), 'big.docx'))).toBe('File is larger than 2 MB.');
   });
   it('rejects empty files', () => {
     expect(validateImportFile(file('', 'empty.txt'))).toBe('This file is empty.');

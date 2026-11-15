@@ -37,18 +37,15 @@ Switch users from the avatar menu (top right) → **Switch account**.
 
 ## Status
 
-**Working end to end:** demo sign-in and account switching; create, rename, edit, delete; rich text (bold, italic, underline, H1–H3, bulleted and numbered lists, undo/redo); autosave with visible status, persisted across refresh; version-conflict detection; `.txt`/`.md`/`.docx` import (≤ 2 MB) into new documents; sharing by email as editor or viewer, role changes and removal, all server-enforced; owned vs shared lists; view-only mode; lost-access handling; deployment on Cloudflare with Postgres.
+**Working end to end:** demo sign-in and account switching; create, rename, edit, delete; rich text (bold, italic, underline, H1–H3, bulleted and numbered lists, undo/redo); autosave with visible status, persisted across refresh; version-conflict detection; `.txt`/`.md` (≤ 1 MB) and `.docx` (≤ 2 MB) import into new documents; after a conflict the stale tab can save its edits as a copy; sharing by email as editor or viewer, role changes and removal, all server-enforced; owned vs shared lists; view-only mode; lost-access handling; deployment on Cloudflare with Postgres.
 
 **Deliberately not built:** real-time co-editing, comments, version history, images/tables, export, real authentication.
 
 **Incomplete / rough edges:**
-- After a version conflict the only option is to reload, so unsaved local edits in the stale tab are dropped (the banner says so).
-- A save whose response is lost in transit can show a conflict even though it succeeded.
 - Size limits count characters rather than bytes.
-- Text files between 1 and 2 MB pass the import check but are larger than the 1 MB document limit, so they fail with a "too large" error.
 - The server checks document structure but not every mark or attribute.
 - The main JS bundle is about 500 kB because the editor isn't lazy-loaded.
-- Running locally, the dev server connects directly to Aiven and occasionally stalls under heavy parallel load. Production goes through Hyperdrive, so run the e2e suite against production.
+- Running locally, the dev server connects directly to Aiven (no pooling). A stuck query now fails with a clear 503 after 8 s instead of hanging, but heavy parallel load locally can still see those errors; production goes through Hyperdrive, so run the e2e suite against production.
 - The Aiven free-tier database may power off after long inactivity; if the app shows connection errors, it needs restarting.
 
-**Next 2–4 hours:** real-time co-editing with Yjs on a Durable Object (live merge and presence); version history with restore (also fixes the conflict data loss); Markdown/PDF export; a "Request edit access" action for viewers; lazy-loading the editor.
+**Next 2–4 hours:** real-time co-editing with Yjs on a Durable Object (live merge and presence); version history with restore (merging conflicting edits instead of saving a copy); Markdown/PDF export; a "Request edit access" action for viewers; lazy-loading the editor.

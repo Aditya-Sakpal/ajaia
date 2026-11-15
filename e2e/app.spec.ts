@@ -233,7 +233,7 @@ test.describe('editing', () => {
     await alice.context.close();
   });
 
-  test('two tabs editing the same document: the stale tab is told to reload', async ({ browser }) => {
+  test('two tabs editing the same document: the stale tab keeps its edits as a copy or reloads', async ({ browser }) => {
     const alice = await asUser(browser, 'alice');
     const doc = await createDoc(alice.request, `Conflict ${stamp()}`, 'base');
     const tab1 = alice.page;
@@ -247,8 +247,18 @@ test.describe('editing', () => {
     await tab2.keyboard.type(' from tab two');
     await expect(tab2.getByText(/changed somewhere else/)).toBeVisible();
     await expect(tab2.locator('.ProseMirror')).toHaveAttribute('contenteditable', 'false');
-    await tab2.getByRole('button', { name: 'Reload' }).click();
+
+    // Keep tab two's edits as a separate document
+    await tab2.getByRole('button', { name: 'Save my version as a copy' }).click();
+    await expect(tab2).not.toHaveURL(new RegExp(`/d/${doc.id}$`));
+    await expect(tab2.locator('#doc-title')).toHaveValue(`${doc.title} (my version)`);
+    await expect(tab2.locator('.ProseMirror')).toContainText(' from tab two');
+    const copyId = tab2.url().split('/d/')[1]!;
+
+    // The original still has tab one's save, and Reload shows it
+    await tab2.goto(`/d/${doc.id}`);
     await expect(tab2.locator('.ProseMirror')).toContainText('from tab one');
+    await deleteDoc(alice.request, copyId);
     await deleteDoc(alice.request, doc.id);
     await alice.context.close();
   });
@@ -318,8 +328,8 @@ test.describe('import', () => {
     await expect(page.getByRole('alert')).toContainText('This file is empty.');
     await input.setInputFiles({ name: 'broken.docx', mimeType: 'application/octet-stream', buffer: Buffer.from('not a zip') });
     await expect(page.getByRole('alert')).toContainText("Couldn't read this .docx file");
-    await input.setInputFiles({ name: 'huge.txt', mimeType: 'text/plain', buffer: Buffer.alloc(2 * 1024 * 1024 + 1, 97) });
-    await expect(page.getByRole('alert')).toContainText('File is larger than 2 MB.');
+    await input.setInputFiles({ name: 'huge.txt', mimeType: 'text/plain', buffer: Buffer.alloc(1024 * 1024 + 1, 97) });
+    await expect(page.getByRole('alert')).toContainText('File is larger than 1 MB.');
     const after = (await (await page.request.get('/api/documents')).json()).owned.length;
     expect(after).toBe(before);
   });

@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import type { User } from '../shared/types';
 import type { Repo } from './db/repo';
+import type { AiClient } from './lib/ai';
+import { aiRoutes } from './routes/ai';
 import type { Env } from './env';
 import { ApiError, errorBody } from './lib/errors';
 import { requireUser } from './lib/session';
@@ -8,10 +10,12 @@ import { authRoutes } from './routes/auth';
 import { documentRoutes } from './routes/documents';
 import { shareRoutes } from './routes/shares';
 
-export type AppEnv = { Bindings: Env; Variables: { user: User; repo: Repo } };
+export type AppEnv = { Bindings: Env; Variables: { user: User; repo: Repo; ai: AiClient | null } };
 
 export interface AppDeps {
   getRepo(env: Env): Repo;
+  /** Returns null when no AI provider is configured. */
+  getAi?(env: Env): AiClient | null;
 }
 
 export function createApp(deps: AppDeps) {
@@ -20,6 +24,7 @@ export function createApp(deps: AppDeps) {
   app.use('*', async (c, next) => {
     const repo = deps.getRepo(c.env);
     c.set('repo', repo);
+    c.set('ai', deps.getAi?.(c.env) ?? null);
     try {
       await next();
     } finally {
@@ -53,6 +58,7 @@ export function createApp(deps: AppDeps) {
   app.use('/documents/*', requireUser);
   app.route('/documents', documentRoutes);
   app.route('/documents', shareRoutes);
+  app.route('/documents', aiRoutes);
 
   app.notFound((c) => c.json(errorBody('not_found', 'Not found.'), 404));
 

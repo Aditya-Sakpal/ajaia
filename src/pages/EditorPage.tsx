@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { EditorContent, useEditor, type Editor, type JSONContent } from '@tiptap/react';
-import { Lock, RotateCw, Users } from 'lucide-react';
+import { Copy, Lock, RotateCw, Users } from 'lucide-react';
 import { DEFAULT_TITLE, TITLE_MAX, type DocJSON, type Document, type Share } from '../../shared/types';
 import { api, ApiError } from '../api/client';
 import { AccountMenu } from '../components/AccountMenu';
@@ -13,7 +13,10 @@ import { Toolbar } from '../components/Toolbar';
 import { MenuBar } from '../components/MenuBar';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { editorExtensions } from '../editor/extensions';
+import { AiAutocomplete } from '../editor/autocomplete';
+import { AiBar } from '../components/AiBar';
 import { createSaveQueue, type SaveState } from '../editor/saveQueue';
+import { isSameSnapshot, type Snapshot } from '../editor/snapshot';
 import { useAuth } from '../lib/auth';
 
 type LoadState = { status: 'loading' } | { status: 'error'; message: string; notFound: boolean } | { status: 'ready'; doc: Document };
@@ -61,10 +64,6 @@ function OpenError({ notFound, message }: { notFound: boolean; message: string }
 }
 
 type Banner = 'conflict' | 'lost' | 'forbidden' | 'signedOut' | null;
-interface Snapshot {
-  title: string;
-  content: DocJSON;
-}
 interface Heading {
   level: number;
   text: string;
@@ -87,6 +86,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
   const [sharesError, setSharesError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [savingCopy, setSavingCopy] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [headings, setHeadings] = useState<Heading[]>([]);
 
@@ -112,6 +112,15 @@ function DocumentEditor({ initial }: { initial: Document }) {
           savedTitleRef.current = updated.title;
           setSavedTitle(updated.title);
         } catch (err) {
+          // A previous save landed but its reply was lost: the server already holds exactly this snapshot.
+          const current = err instanceof ApiError && err.status === 409 ? err.body?.current : undefined;
+          if (current && isSameSnapshot(snap, current)) {
+            versionRef.current = current.version;
+            savedTitleRef.current = current.title;
+            setSavedTitle(current.title);
+            setSaveError(null);
+            return;
+          }
           setSaveError(err instanceof ApiError ? err.message : 'Your changes could not be saved.');
           if (err instanceof ApiError) {
             if (err.status === 409) {
@@ -158,8 +167,42 @@ function DocumentEditor({ initial }: { initial: Document }) {
     [initial.content],
   );
 
+  // AI autocomplete preference (per browser); switched off automatically if the server has no AI key.
+  const [autocompleteOn, setAutocompleteOn] = useState(() => {
+    try {
+      return localStorage.getItem('ajaia.autocomplete') !== 'off';
+    } catch {
+      return true;
+    }
+  });
+  const autocompleteRef = useRef(autocompleteOn);
+  function changeAutocomplete(on: boolean) {
+    autocompleteRef.current = on;
+    setAutocompleteOn(on);
+    try {
+      localStorage.setItem('ajaia.autocomplete', on ? 'on' : 'off');
+    } catch {
+      /* storage unavailable: preference lasts for this page only */
+    }
+  }
+
   const editor = useEditor({
-    extensions: editorExtensions,
+    extensions: [
+      ...editorExtensions,
+      AiAutocomplete.configure({
+        debounceMs: 900,
+        isEnabled: () => canEdit && autocompleteRef.current,
+        fetchCompletion: async (before) => {
+          try {
+            const r = await api.post<{ completion: string }>(`/documents/${initial.id}/ai/complete`, { before });
+            return r.completion;
+          } catch (err) {
+            if (err instanceof ApiError && err.status === 503) autocompleteRef.current = false;
+            throw err;
+          }
+        },
+      }),
+    ],
     content: initial.content as JSONContent,
     editable: canEdit,
     immediatelyRender: true,
@@ -198,6 +241,24 @@ function DocumentEditor({ initial }: { initial: Document }) {
   function openShare() {
     setShareOpen(true);
     loadShares(); // always show the current list, not the one from page load
+  }
+
+  /** After a conflict: keep this tab's edits by saving them as a new document the user owns. */
+  async function saveMyVersionAsCopy() {
+    if (savingCopy) return;
+    setSavingCopy(true);
+    const snap = snapshot();
+    try {
+      const copy = await api.post<Document>('/documents', {
+        title: `${snap.title} (my version)`.slice(0, TITLE_MAX),
+        content: snap.content,
+      });
+      leavingRef.current = true;
+      navigate(`/d/${copy.id}`);
+    } catch (err) {
+      setSavingCopy(false);
+      setSaveError(err instanceof ApiError ? err.message : 'Could not save a copy.');
+    }
   }
 
   async function createNew() {
@@ -347,18 +408,25 @@ function DocumentEditor({ initial }: { initial: Document }) {
         <Notice
           tone="warn"
           action={
-            <NoticeButton
-              onClick={() => {
-                leavingRef.current = true;
-                window.location.reload();
-              }}
-              icon={<RotateCw className="size-4" />}
-              label="Reload"
-            />
+            <span className="flex shrink-0 flex-wrap justify-end gap-1">
+              <NoticeButton
+                onClick={() => void saveMyVersionAsCopy()}
+                icon={<Copy className="size-4" />}
+                label={savingCopy ? 'Saving copy…' : 'Save my version as a copy'}
+              />
+              <NoticeButton
+                onClick={() => {
+                  leavingRef.current = true;
+                  window.location.reload();
+                }}
+                icon={<RotateCw className="size-4" />}
+                label="Reload"
+              />
+            </span>
           }
         >
-          This document was changed somewhere else (another tab or person). Reload to see the latest version — edits made
-          since your last save won’t be kept.
+          This document was changed somewhere else (another tab or person). Your edits are still here: save them as a copy,
+          or reload to see the latest version.
         </Notice>
       )}
       {banner === 'lost' && (
@@ -385,7 +453,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
       {/* Canvas */}
       <div className="relative flex min-h-0 flex-1 overflow-y-auto border-t border-line-soft">
         <Outline headings={headings} editor={editor} />
-        <div className="flex min-w-0 flex-1 justify-center px-2 py-4 sm:px-6 lg:pr-[248px]">
+        <div className="flex min-w-0 flex-1 flex-col items-center px-2 py-4 sm:px-6 lg:pr-[248px]">
           <article
             className="doc-page h-max min-h-[1056px] w-full max-w-[816px] border border-line bg-white px-6 py-10 shadow-[0_1px_3px_rgb(60_64_67/0.15)] sm:px-[72px] sm:py-[72px] lg:px-[96px] lg:py-[96px]"
             onClick={(e) => {
@@ -394,6 +462,9 @@ function DocumentEditor({ initial }: { initial: Document }) {
           >
             <EditorContent editor={editor} />
           </article>
+          {editor && editable && (
+            <AiBar editor={editor} docId={initial.id} autocomplete={autocompleteOn} onAutocompleteChange={changeAutocomplete} />
+          )}
         </div>
       </div>
 

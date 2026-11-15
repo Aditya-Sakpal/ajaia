@@ -141,3 +141,20 @@ input[list]::-webkit-calendar-picker-indicator {
 dialog::backdrop {
   background: rgb(32 33 36 / 0.45);
 }
+
+/* AI autocomplete ghost text */
+.doc-page .ai-ghost {
+  color: #9aa0a6;
+  pointer-events: none;
+  user-select: none;
+}
+.doc-page .ai-ghost-hint {
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: #80868b;
+  vertical-align: 1px;
+}

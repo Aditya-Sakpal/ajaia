@@ -1,7 +1,10 @@
 import { TITLE_MAX } from '../../shared/types';
 
 export const IMPORT_ACCEPT = '.txt,.md,.docx';
+/** .docx is zipped, so its converted content is far smaller than the file. */
 export const IMPORT_MAX_BYTES = 2 * 1024 * 1024;
+/** Plain text converts ~1:1, so it must fit the server's 1 MB document limit. */
+export const TEXT_IMPORT_MAX_BYTES = 1024 * 1024;
 export const IMPORT_TYPES = '.txt, .md, .docx';
 
 type Kind = 'txt' | 'md' | 'docx';
@@ -16,7 +19,11 @@ function kindOf(name: string): Kind | null {
 /** Returns a user-facing error message, or null when the file can be imported. */
 export function validateImportFile(file: File): string | null {
   if (!kindOf(file.name)) return 'Only .txt, .md and .docx files are supported.';
-  if (file.size > IMPORT_MAX_BYTES) return 'File is larger than 2 MB.';
+  if (kindOf(file.name) === 'docx') {
+    if (file.size > IMPORT_MAX_BYTES) return 'File is larger than 2 MB.';
+  } else if (file.size > TEXT_IMPORT_MAX_BYTES) {
+    return 'File is larger than 1 MB.';
+  }
   if (file.size === 0) return 'This file is empty.';
   return null;
 }
