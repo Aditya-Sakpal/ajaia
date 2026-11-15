@@ -7,12 +7,15 @@ import {
   Italic,
   List,
   ListOrdered,
+  MessageSquareDiff,
   Pencil,
   Redo2,
   RemoveFormatting,
   Underline,
   Undo2,
 } from 'lucide-react';
+import { isSuggesting } from '../editor/suggestions';
+import { SuggestionsMenu } from './SuggestionsMenu';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -38,6 +41,8 @@ export function Toolbar({ editor, editable, viewHint }: { editor: Editor; editab
             : 'p') as Block,
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
+      canSuggest: e.extensionManager.extensions.some((x) => x.name === 'suggestionMode'),
+      suggesting: isSuggesting(e.state),
     }),
   });
 
@@ -122,12 +127,36 @@ export function Toolbar({ editor, editable, viewHint }: { editor: Editor; editab
       ) : (
         <span className="px-2 text-[14px] text-ink-2">View only</span>
       )}
-      <span
-        title={editable ? undefined : viewHint}
-        className={`ml-auto shrink-0 items-center gap-2 rounded-full px-3 py-1 text-[14px] text-ink-2 ${editable ? 'hidden sm:flex' : 'flex'}`}
-      >
-        {editable ? <Pencil className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
-        {editable ? 'Editing' : 'Viewing'}
+      <span className="ml-auto flex shrink-0 items-center gap-1">
+        <SuggestionsMenu editor={editor} canResolve={editable} />
+        {editable && s.canSuggest ? (
+          <label className="relative flex h-7 items-center rounded px-1 text-ink-2 hover:bg-pill-hover">
+            <span className="sr-only">Mode</span>
+            {s.suggesting ? (
+              <MessageSquareDiff className="pointer-events-none absolute left-2 size-4 text-[#137333]" aria-hidden />
+            ) : (
+              <Pencil className="pointer-events-none absolute left-2 size-4" aria-hidden />
+            )}
+            <select
+              value={s.suggesting ? 'suggesting' : 'editing'}
+              onChange={(e) => chain().setSuggesting(e.target.value === 'suggesting').run()}
+              title="Editing changes the document directly; Suggesting proposes changes others can accept or reject"
+              className={`h-full cursor-pointer appearance-none bg-transparent pr-6 pl-7 text-[14px] focus:outline-none ${s.suggesting ? 'text-[#137333]' : 'text-ink-2'}`}
+            >
+              <option value="editing">Editing</option>
+              <option value="suggesting">Suggesting</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-1.5 size-4 text-ink-2" aria-hidden />
+          </label>
+        ) : (
+          <span
+            title={editable ? undefined : viewHint}
+            className={`shrink-0 items-center gap-2 rounded-full px-3 py-1 text-[14px] text-ink-2 ${editable ? 'hidden sm:flex' : 'flex'}`}
+          >
+            {editable ? <Pencil className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
+            {editable ? 'Editing' : 'Viewing'}
+          </span>
+        )}
       </span>
     </div>
   );

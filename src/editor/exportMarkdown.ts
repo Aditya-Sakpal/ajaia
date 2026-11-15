@@ -60,6 +60,13 @@ function renderText(n: PMNode): string {
       case 'underline':
         out = `<u>${out}</u>`;
         break;
+      // Pending suggestions keep their meaning in the export as HTML change tags.
+      case 'suggestionInsert':
+        out = `<ins>${out}</ins>`;
+        break;
+      case 'suggestionDelete':
+        out = `<del>${out}</del>`;
+        break;
       case 'link':
         out = `[${out}](${String(m.attrs?.href ?? '')})`;
         break;

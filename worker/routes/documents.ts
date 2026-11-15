@@ -16,6 +16,13 @@ export const documentRoutes = new Hono<AppEnv>()
       title: input.title ?? DEFAULT_TITLE,
       content: input.content ?? EMPTY_DOC,
     });
+    if (input.content !== undefined) {
+      // Imported or copied content gets a starting point in version history.
+      await c.var.repo.recordVersion(
+        { documentId: doc.id, authorId: c.var.user.id, version: doc.version, title: doc.title, content: doc.content },
+        0,
+      );
+    }
     return c.json(toDocumentDto(doc, c.var.user, 'owner'), 201);
   })
   .get('/:id', async (c) => {

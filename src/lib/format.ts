@@ -33,6 +33,6 @@ export const ACCESS_LABEL: Record<Access, string> = { owner: 'Owner', editor: 'E
 export const ACCESS_BADGE: Record<Access, string> = {
   owner: 'bg-[#d3e3fd] text-[#041e49]',
   editor: 'bg-[#d3e3fd] text-[#041e49]',
-  commenter: 'bg-[#fef7e0] text-[#594300]',
+  commenter: 'bg-[#e8def8] text-[#21005d]',
   viewer: 'bg-[#e3e3e3] text-ink-2',
 };

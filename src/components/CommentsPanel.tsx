@@ -15,11 +15,32 @@ interface Props {
   onClose(): void;
   /** Bump to reload the list (e.g. after a live pull). */
   refreshKey?: number;
+  /** Comment whose highlight is selected in the document. */
+  activeCommentId?: string | null;
+  /** Called whenever the list changes (load, post, resolve, delete) so the page can update highlights. */
+  onCommentsLoaded?(comments: Comment[]): void;
+  /** The user picked a comment card: the page should select and scroll to its anchor. */
+  onSelectComment?(id: string): void;
+  /** Open comments whose quoted text can no longer be found in the document. */
+  orphanedIds?: ReadonlySet<string>;
 }
 
 const errorText = (err: unknown) => (err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
 
-export function CommentsPanel({ documentId, me, access, ownerId, pendingQuote, onClearQuote, onClose, refreshKey }: Props) {
+export function CommentsPanel({
+  documentId,
+  me,
+  access,
+  ownerId,
+  pendingQuote,
+  onClearQuote,
+  onClose,
+  refreshKey,
+  activeCommentId = null,
+  onCommentsLoaded,
+  onSelectComment,
+  orphanedIds,
+}: Props) {
   const canComment = access !== 'viewer';
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -43,6 +64,12 @@ export function CommentsPanel({ documentId, me, access, ownerId, pendingQuote, o
   useEffect(() => {
     void load();
   }, [load, refreshKey]);
+
+  const loadedRef = useRef(onCommentsLoaded);
+  loadedRef.current = onCommentsLoaded;
+  useEffect(() => {
+    if (comments) loadedRef.current?.(comments);
+  }, [comments]);
 
   // A fresh quote means the user just asked to comment on a selection: put them in the composer.
   useEffect(() => {
@@ -116,6 +143,9 @@ export function CommentsPanel({ documentId, me, access, ownerId, pendingQuote, o
       busy={rowBusy.has(c.id)}
       canResolve={canComment}
       canDelete={c.author.id === me.id || me.id === ownerId}
+      active={c.id === activeCommentId}
+      orphaned={!c.resolved && (orphanedIds?.has(c.id) ?? false)}
+      onSelect={onSelectComment && !c.resolved ? () => onSelectComment(c.id) : undefined}
       onResolve={(r) => void setResolved(c, r)}
       onDelete={() => void remove(c)}
     />
@@ -130,7 +160,7 @@ export function CommentsPanel({ documentId, me, access, ownerId, pendingQuote, o
           onClose();
         }
       }}
-      className="flex h-full w-[300px] shrink-0 flex-col border-l border-line-soft bg-chrome text-ink"
+      className="flex h-full w-full shrink-0 flex-col border-l border-line-soft bg-chrome text-ink sm:w-[300px]"
     >
       <div className="flex items-center gap-2 px-4 pt-3 pb-2">
         <h2 id="comments-title" className="flex-1 text-[16px] font-medium">
@@ -182,7 +212,7 @@ export function CommentsPanel({ documentId, me, access, ownerId, pendingQuote, o
               </p>
             )}
             <div className="mt-2 flex items-center justify-between gap-2">
-              <span id="comment-hint" className="text-[11px] text-ink-3">
+              <span id="comment-hint" className="text-[12px] text-ink-3">
                 Ctrl+Enter to post
               </span>
               <button
@@ -261,6 +291,9 @@ function CommentItem({
   canDelete,
   onResolve,
   onDelete,
+  active = false,
+  orphaned = false,
+  onSelect,
 }: {
   comment: Comment;
   me: User;
@@ -269,12 +302,31 @@ function CommentItem({
   canDelete: boolean;
   onResolve(resolved: boolean): void;
   onDelete(): void;
+  active?: boolean;
+  orphaned?: boolean;
+  onSelect?(): void;
 }) {
   const absolute = new Date(c.createdAt).toLocaleString();
+  const ref = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [active]);
+  const canLocate = Boolean(onSelect && c.quote && !orphaned);
   return (
     <li
-      className={`rounded-lg border border-line-soft bg-white p-3 shadow-[0_1px_2px_rgb(60_64_67/0.15)] ${c.resolved ? 'opacity-75' : ''}`}
+      ref={ref}
+      data-comment-card={c.id}
+      onClick={(e) => {
+        // Buttons inside the card (Resolve, Delete) do their own thing.
+        if (canLocate && !(e.target as HTMLElement).closest('button')) onSelect?.();
+      }}
+      className={`rounded-lg border bg-white p-3 transition-shadow ${
+        active
+          ? 'border-[#fbbc04] shadow-[0_1px_3px_rgb(60_64_67/0.3),0_4px_8px_3px_rgb(60_64_67/0.15)]'
+          : 'border-line-soft shadow-[0_1px_2px_rgb(60_64_67/0.15)]'
+      } ${canLocate ? 'cursor-pointer' : ''} ${c.resolved ? 'opacity-75' : ''}`}
       aria-busy={busy}
+      aria-current={active ? 'true' : undefined}
     >
       <div className="flex items-center gap-2">
         <Avatar user={c.author} size={28} />
@@ -283,7 +335,7 @@ function CommentItem({
             {c.author.name}
             {c.author.id === me.id && <span className="font-normal text-ink-3"> (you)</span>}
           </p>
-          <p className="text-[11px] text-ink-3">
+          <p className="text-[12px] text-ink-3">
             <time dateTime={c.createdAt} title={absolute}>
               {relativeTime(c.createdAt)}
             </time>
@@ -291,9 +343,26 @@ function CommentItem({
         </div>
         {busy && <LoaderCircle className="size-4 animate-spin text-action" aria-label="Updating" />}
       </div>
-      {c.quote && (
-        <p className="mt-2 line-clamp-3 border-l-[3px] border-[#fbbc04] pl-2 text-[12px] leading-4 break-words text-ink-3">{c.quote}</p>
-      )}
+      {c.quote &&
+        (canLocate ? (
+          <button
+            type="button"
+            onClick={onSelect}
+            aria-label={`Show in document: ${c.quote}`}
+            className="mt-2 block w-full rounded-sm text-left focus-visible:outline-2 focus-visible:outline-action"
+          >
+            <span className="line-clamp-3 border-l-[3px] border-[#fbbc04] pl-2 text-[12px] leading-4 break-words text-ink-3">{c.quote}</span>
+          </button>
+        ) : (
+          <p
+            className={`mt-2 line-clamp-3 border-l-[3px] pl-2 text-[12px] leading-4 break-words text-ink-3 ${
+              orphaned ? 'border-line' : 'border-[#fbbc04]'
+            }`}
+          >
+            {c.quote}
+          </p>
+        ))}
+      {orphaned && <p className="mt-1 text-[12px] leading-4 text-ink-3 italic">The text this comment refers to was changed or removed.</p>}
       <p className="mt-2 text-[14px] leading-5 break-words whitespace-pre-wrap text-ink">{c.body}</p>
       {(canResolve || canDelete) && (
         <div className="mt-2 -mb-1 flex justify-end gap-1">

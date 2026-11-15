@@ -26,7 +26,7 @@ A small team document editor where a signed-in user can write formatted document
 
 ### Deliberately out of scope (state in README/video)
 
-Real-time co-editing (CRDT/WebSockets) · real authentication/passwords · suggestion mode (tracked changes) · images & tables in the editor · link sharing / public docs · email notifications · mobile-optimised editing (layout is responsive, not tuned).
+Real-time co-editing (CRDT/WebSockets) · real authentication/passwords · suggestions by commenters · images & tables in the editor · link sharing / public docs · email notifications · mobile-optimised editing (layout is responsive, not tuned).
 
 Rationale: real-time co-editing is the most Google-Docs-like feature but is a multi-day problem done properly; a version-checked save gives correct multi-user behaviour within the timebox. Role-based sharing (editor/viewer) is the one stretch item taken, because it makes the access logic meaningful and testable at small cost.
 
@@ -133,6 +133,7 @@ Validation limits: title trimmed, 1–200 chars (create defaults to "Untitled do
 | # | Capability | Definition of done |
 |---|---|---|
 | E1 | Commenter role | Owner can share as **commenter**; commenter sees the doc read-only but can comment. DB check constraint allows `commenter`. |
-| E2 | Comments | Select text → Insert › Comment (Ctrl+Alt+M) or the comment button; side panel lists open + resolved comments with the quoted text. `GET/POST /documents/:id/comments`, `PATCH/DELETE /documents/:id/comments/:commentId`. Comments are anchored by a quote snapshot, not a live range. |
+| E2 | Comments | Select text → Insert › Comment (Ctrl+Alt+M) or the comment button; side panel lists open + resolved comments with the quoted text. `GET/POST /documents/:id/comments`, `PATCH/DELETE /documents/:id/comments/:commentId`. Comments are anchored client-side: the quoted text is highlighted in the document and the anchor is remapped through edits; if the text is removed the comment is flagged as orphaned. |
 | E3 | Version history | Every content save records a snapshot; saves by the same author within 2 min update one snapshot. File › Version history lists versions (newest first, max 100) with a read-only preview; editors can restore (goes through autosave, so it is undoable and versioned). `GET /documents/:id/versions[/:versionId]`. |
 | E4 | Export | File › Download as Markdown (client-side ProseMirror → Markdown); File › Print / Save as PDF uses the browser print dialog with a print stylesheet that prints only the page. |
+| E5 | Suggestion mode | Owners/editors switch the toolbar between **Editing** and **Suggesting**. In Suggesting, insertions are kept as `suggestionInsert` marks and deletions as `suggestionDelete` marks (stored in the document JSON, attributed to the author). Owners/editors accept or reject each suggestion or all at once. Commenters cannot suggest (the server rejects their content writes). |

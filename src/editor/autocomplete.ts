@@ -107,6 +107,7 @@ export const AiAutocomplete = Extension.create<AutocompleteOptions>({
             if (!s?.text) return null;
             const ghost = document.createElement('span');
             ghost.className = 'ai-ghost';
+            ghost.contentEditable = 'false';
             ghost.textContent = s.text;
             const hint = document.createElement('span');
             hint.className = 'ai-ghost-hint';

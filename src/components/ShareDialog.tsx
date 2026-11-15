@@ -232,7 +232,7 @@ export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, s
         )}
       </div>
       <div className="flex items-center justify-between gap-3 px-6 pt-4 pb-6">
-        <p className="text-[12px] text-ink-3">Editors can change content and the title. Viewers can only read.</p>
+        <p className="text-[12px] text-ink-3">Editors can change content and the title. Commenters can read and comment. Viewers can only read.</p>
         <button type="button" onClick={onClose} className="h-10 shrink-0 rounded-full bg-action px-6 text-[14px] font-medium text-white hover:bg-action-hover">
           Done
         </button>
@@ -271,7 +271,7 @@ function RoleSelect({
   compact?: boolean;
 }) {
   return (
-    <label className={`relative flex items-center rounded ${compact ? 'h-9 hover:bg-hover' : 'h-12 border border-[#747775]'}`}>
+    <label className={`relative flex items-center rounded focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-action ${compact ? 'h-9 hover:bg-hover' : 'h-12 border border-[#747775]'}`}>
       <span className="sr-only">{label}</span>
       <select
         value={value}

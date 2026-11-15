@@ -220,6 +220,12 @@ dialog::backdrop {
     border: 0 !important;
     background: #fff !important;
   }
+  /* Native <dialog>s carry no role attribute, and the version-history preview inside one is itself a
+     .doc-page, so the unwrap above would force even a closed dialog to display:block and print a stale
+     second copy. This selector out-specifies :has(.doc-page) (0,1,0), so dialogs never print. */
+  body dialog:not(.doc-page) {
+    display: none !important;
+  }
   .doc-page {
     width: 100% !important;
     max-width: none !important;
@@ -251,4 +257,35 @@ dialog::backdrop {
   .doc-page [data-placeholder]::before {
     content: none !important;
   }
+}
+
+/* ---- Comment anchors (src/editor/commentAnchors.ts) ----
+   Inline decorations over the text an open comment quotes. Not stored in the document. */
+.doc-page .ProseMirror .comment-anchor {
+  background: #fef7e0;
+  border-bottom: 2px solid #fbbc04;
+  cursor: pointer;
+}
+.doc-page .ProseMirror .comment-anchor-active {
+  background: #fce8b2;
+}
+@media print {
+  .comment-anchor {
+    background: none !important;
+    border: 0 !important;
+  }
+}
+
+
+/* ---- Suggestion mode (tracked changes): src/editor/suggestions.ts ---- */
+.ProseMirror ins.suggestion-insert {
+  color: #137333;
+  background: #e6f4ea;
+  text-decoration: underline;
+  text-decoration-color: #137333;
+}
+.ProseMirror del.suggestion-delete {
+  color: #c5221f;
+  text-decoration: line-through;
+  text-decoration-color: #c5221f;
 }

@@ -48,6 +48,12 @@ describe('docToMarkdown', () => {
     expect(md).toBe('**b** *i* ~~s~~ `c` <u>u</u> [link](https://example.com)\n');
   });
 
+  it('keeps pending suggestions as <ins>/<del>', () => {
+    expect(docToMarkdown(doc(p(t('old', [{ type: 'suggestionDelete' }]), t('new', [{ type: 'suggestionInsert' }]))))).toBe(
+      '<del>old</del><ins>new</ins>\n',
+    );
+  });
+
   it('combines marks on the same text', () => {
     expect(docToMarkdown(doc(p(t('x', [{ type: 'bold' }, { type: 'italic' }]))))).toBe('***x***\n');
   });

@@ -13,8 +13,11 @@ import { Toolbar } from '../components/Toolbar';
 import { MenuBar } from '../components/MenuBar';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { editorExtensions } from '../editor/extensions';
+import { SuggestionMode } from '../editor/suggestions';
 import { AiAutocomplete } from '../editor/autocomplete';
 import { Pagination } from '../editor/pagination';
+import { CommentAnchors, getCommentAnchors } from '../editor/commentAnchors';
+import type { Comment } from '../../shared/types';
 import { AiBar } from '../components/AiBar';
 import { generateJSON } from '@tiptap/core';
 import { IMPORT_ACCEPT, fileToHtml, titleFromFilename, validateImportFile } from '../import/fileImport';
@@ -284,10 +287,14 @@ function DocumentEditor({ initial }: { initial: Document }) {
     }
   }
 
+  // Clicking a comment highlight in the document; set below once the comments state exists.
+  const activateCommentRef = useRef<(id: string) => void>(() => {});
   const editor = useEditor({
     extensions: [
       ...editorExtensions,
       Pagination,
+      CommentAnchors.configure({ onActivate: (cid) => activateCommentRef.current(cid) }),
+      SuggestionMode.configure({ user: { id: me.id, name: me.name } }),
       AiAutocomplete.configure({
         debounceMs: 900,
         isEnabled: () => canEdit && autocompleteRef.current,
@@ -341,6 +348,55 @@ function DocumentEditor({ initial }: { initial: Document }) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [pendingQuote, setPendingQuote] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  // Comment anchors: highlight the quoted text of open comments (client-side; see editor/commentAnchors.ts).
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [orphanedIds, setOrphanedIds] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    api
+      .get<Comment[]>(`/documents/${initial.id}/comments`)
+      .then(setComments)
+      .catch(() => {
+        /* highlights are a nicety; the panel shows its own load error */
+      });
+  }, [initial.id]);
+  useEffect(() => {
+    editor?.commands.setCommentAnchors(comments.filter((c) => !c.resolved).map(({ id: cid, quote }) => ({ id: cid, quote })));
+  }, [editor, comments]);
+  useEffect(() => {
+    editor?.commands.setActiveComment(activeCommentId);
+  }, [editor, activeCommentId]);
+  useEffect(() => {
+    if (!editor) return;
+    const compute = () => {
+      const anchors = getCommentAnchors(editor.state);
+      const next = new Set(comments.filter((c) => !c.resolved && c.quote.trim() && !anchors.has(c.id)).map((c) => c.id));
+      setOrphanedIds((prev) => (prev.size === next.size && [...next].every((x) => prev.has(x)) ? prev : next));
+    };
+    compute();
+    editor.on('transaction', compute);
+    return () => {
+      editor.off('transaction', compute);
+    };
+  }, [editor, comments]);
+  activateCommentRef.current = (cid) => {
+    setCommentsOpen(true);
+    setActiveCommentId(cid);
+  };
+  function selectComment(cid: string) {
+    setActiveCommentId(cid);
+    const ed = editorRef.current;
+    const range = ed && getCommentAnchors(ed.state).get(cid);
+    if (!ed || !range) return;
+    const el =
+      ed.view.dom.querySelector(`[data-comment-id="${CSS.escape(cid)}"]`) ??
+      (() => {
+        const { node } = ed.view.domAtPos(range.from);
+        return node instanceof Element ? node : node.parentElement;
+      })();
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
 
   function startComment() {
     const ed = editorRef.current;
@@ -587,7 +643,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
             aria-pressed={commentsOpen}
             aria-label="Comments"
             title={canComment ? 'Comments — select text first to comment on it' : 'Comments'}
-            className={`flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-hover ${commentsOpen ? 'bg-active' : ''}`}
+            className={`hidden size-10 items-center justify-center rounded-full text-ink-2 hover:bg-hover sm:flex ${commentsOpen ? 'bg-active' : ''}`}
           >
             <MessageSquarePlus className="size-5" aria-hidden />
           </button>
@@ -696,7 +752,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
           )}
         </div>
         {commentsOpen && (
-          <div className="sticky top-0 h-full shrink-0 border-l border-line-soft bg-white" data-print-hide>
+          <div className="fixed inset-x-0 bottom-0 z-40 h-[70vh] shadow-[0_-2px_8px_rgb(60_64_67/0.2)] sm:sticky sm:inset-auto sm:top-0 sm:z-auto sm:h-full sm:shrink-0 sm:border-l sm:border-line-soft sm:bg-white sm:shadow-none" data-print-hide>
             <CommentsPanel
               documentId={initial.id}
               me={me}
@@ -707,7 +763,12 @@ function DocumentEditor({ initial }: { initial: Document }) {
               onClose={() => {
                 setCommentsOpen(false);
                 setPendingQuote('');
+                setActiveCommentId(null);
               }}
+              activeCommentId={activeCommentId}
+              onCommentsLoaded={setComments}
+              onSelectComment={selectComment}
+              orphanedIds={orphanedIds}
             />
           </div>
         )}

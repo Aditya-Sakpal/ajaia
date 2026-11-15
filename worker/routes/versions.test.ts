@@ -46,6 +46,16 @@ describe('version history', () => {
     expect(list.map((v: { author: { email: string } }) => v.author.email)).toEqual(['bob@ajaia.test', 'alice@ajaia.test']);
   });
 
+  it('creating a document with content (import) records a first version', async () => {
+    const t = makeTestApp();
+    const alice = await loginAs(t, 'alice@ajaia.test');
+    const res = await t.request('/api/documents', { method: 'POST', cookie: alice, json: { title: 'Imported', content: para('from file') } });
+    const d = await body(res);
+    const list = await body(await t.request(`/api/documents/${d.id}/versions`, { cookie: alice }));
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ version: 1, title: 'Imported' });
+  });
+
   it('strangers get 404; unknown version id is 404', async () => {
     const t = makeTestApp();
     const d = await t.repo.createDocument({ ownerId: t.alice.id, title: 'A', content: { type: 'doc' } });

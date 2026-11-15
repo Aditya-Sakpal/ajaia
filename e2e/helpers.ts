@@ -36,7 +36,7 @@ export async function deleteDoc(request: APIRequestContext, id: string) {
   await request.delete(`/api/documents/${id}`);
 }
 
-export async function share(request: APIRequestContext, id: string, who: Who, role: 'editor' | 'viewer') {
+export async function share(request: APIRequestContext, id: string, who: Who, role: 'editor' | 'commenter' | 'viewer') {
   const res = await request.put(`/api/documents/${id}/shares`, { data: { email: USERS[who].email, role } });
   expect(res.ok()).toBeTruthy();
 }

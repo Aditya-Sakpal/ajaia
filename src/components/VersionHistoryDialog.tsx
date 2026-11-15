@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EditorContent, useEditor, type JSONContent } from '@tiptap/react';
-import { LoaderCircle, X } from 'lucide-react';
+import { History, LoaderCircle, X } from 'lucide-react';
 import type { Version, VersionSummary } from '../../shared/types';
 import { api, ApiError } from '../api/client';
+import { Avatar } from './Avatar';
 import { editorExtensions } from '../editor/extensions';
 import { relativeTime } from '../lib/format';
 
@@ -91,6 +92,8 @@ export function VersionHistoryDialog({ documentId, open, canRestore, onClose, on
   }
 
   const selected = versions?.find((v) => v.id === selectedId) ?? null;
+  // The newest snapshot is what the document already contains, so restoring it would be a no-op.
+  const isCurrent = selected !== null && versions !== null && versions[0]?.id === selected.id;
 
   return (
     <dialog
@@ -129,11 +132,11 @@ export function VersionHistoryDialog({ documentId, open, canRestore, onClose, on
               </p>
             )}
             {versions !== null && versions.length === 0 && (
-              <p className="px-5 py-4 text-[13px] text-ink-2">No saved versions yet. Versions are saved automatically as you edit.</p>
+              <p className="px-5 py-4 text-[12px] text-ink-2">No saved versions yet.</p>
             )}
             {versions !== null && versions.length > 0 && (
               <ul className="py-2">
-                {versions.map((v) => {
+                {versions.map((v, i) => {
                   const active = v.id === selectedId;
                   return (
                     <li key={v.id}>
@@ -145,16 +148,15 @@ export function VersionHistoryDialog({ documentId, open, canRestore, onClose, on
                           active ? 'bg-active' : 'hover:bg-hover'
                         }`}
                       >
-                        <span className="flex items-baseline justify-between gap-2">
-                          <span className="truncate text-[14px] font-medium text-ink">
-                            <time dateTime={v.createdAt} title={absoluteTime(v.createdAt)}>
-                              {absoluteTime(v.createdAt)}
-                            </time>
-                          </span>
-                          <span className="shrink-0 text-[12px] text-ink-3">v{v.version}</span>
+                        <span className="block truncate text-[14px] font-medium text-ink">
+                          <time dateTime={v.createdAt}>{absoluteTime(v.createdAt)}</time>
                         </span>
-                        <span className="mt-0.5 block truncate text-[12px] text-ink-2">
-                          {v.author.name} · {relativeTime(v.createdAt)}
+                        {i === 0 && <span className="mt-0.5 block text-[12px] text-ink-2 italic">Current version</span>}
+                        <span className="mt-1 flex items-center gap-1.5 text-[12px] text-ink-2">
+                          <Avatar user={v.author} size={16} title="" />
+                          <span className="truncate">
+                            {v.author.name} · {relativeTime(v.createdAt)}
+                          </span>
                         </span>
                       </button>
                     </li>
@@ -166,9 +168,18 @@ export function VersionHistoryDialog({ documentId, open, canRestore, onClose, on
 
           {/* Preview */}
           <section aria-label="Version preview" className="relative min-h-0 flex-1 overflow-y-auto bg-[#f0f4f9] px-3 py-4 sm:px-6">
+            {versions !== null && versions.length === 0 && (
+              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                <History className="size-8 text-ink-3" aria-hidden />
+                <p className="mt-3 text-[14px] font-medium text-ink">No versions yet</p>
+                <p className="mt-1 max-w-[320px] text-[12px] text-ink-2">
+                  Versions are saved automatically as people edit. You'll be able to preview and restore them here.
+                </p>
+              </div>
+            )}
             {selected && (
               <p className="mx-auto mb-3 max-w-[816px] truncate text-[13px] text-ink-2">
-                <span className="font-medium text-ink">{selected.title}</span> · v{selected.version} by {selected.author.name}
+                <span className="font-medium text-ink">{selected.title}</span> · saved by {selected.author.name}
               </p>
             )}
             {previewLoading && (
@@ -193,20 +204,26 @@ export function VersionHistoryDialog({ documentId, open, canRestore, onClose, on
               hidden={!full}
               className="doc-page mx-auto w-full max-w-[816px] border border-line bg-white px-6 py-10 shadow-[0_1px_3px_rgb(60_64_67/0.15)] sm:px-[72px] sm:py-[72px]"
             >
-              <EditorContent editor={editor} />
+              {open && <EditorContent editor={editor} />}
             </article>
           </section>
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-line-soft px-6 py-4">
-          <p className="text-[12px] text-ink-3">
-            {canRestore ? 'Restoring replaces the current content with the selected version.' : 'Only editors can restore versions.'}
+          <p className="hidden text-[12px] text-ink-3 sm:block">
+            {!selected
+              ? ''
+              : !canRestore
+              ? 'Only editors can restore versions.'
+              : isCurrent
+                ? 'This is the current version. Pick an earlier one to restore it.'
+                : 'Restoring replaces the current content. You can undo it with Ctrl+Z.'}
           </p>
-          <div className="flex shrink-0 gap-2">
+          <div className="ml-auto flex shrink-0 gap-2">
             <button type="button" onClick={onClose} className="h-10 rounded-full px-4 text-[14px] font-medium text-action hover:bg-hover">
               Close
             </button>
-            {canRestore && selectedId && (
+            {canRestore && selectedId && !isCurrent && (
               <button
                 type="button"
                 onClick={restore}
