@@ -1,0 +1,143 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Google Sans Text', 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+  --font-doc: Arial, 'Liberation Sans', Helvetica, sans-serif;
+
+  --color-chrome: #f9fbfd;
+  --color-pill: #edf2fa;
+  --color-pill-hover: #dfe5ee;
+  --color-active: #d3e3fd;
+  --color-share: #c2e7ff;
+  --color-share-hover: #b3d7ef;
+  --color-share-ink: #001d35;
+  --color-action: #0b57d0;
+  --color-action-hover: #0842a0;
+  --color-ink: #1f1f1f;
+  --color-ink-2: #444746;
+  --color-ink-3: #5f6368;
+  --color-line: #c7c7c7;
+  --color-line-soft: #e1e3e1;
+  --color-hover: #e9eef6;
+  --color-danger: #b3261e;
+  --color-danger-bg: #fce8e6;
+  --color-warn-bg: #fef7e0;
+  --color-warn-ink: #5c3c00;
+  --color-ok: #146c2e;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-chrome font-sans text-ink antialiased;
+    font-size: 14px;
+  }
+  ::selection {
+    background: #c2dbff;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-action);
+    outline-offset: 2px;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: default;
+  }
+  * {
+    scrollbar-color: #c4c7c5 transparent;
+    scrollbar-width: thin;
+  }
+}
+
+/* Document page typography (TipTap / ProseMirror). */
+.doc-page .ProseMirror {
+  font-family: var(--font-doc);
+  font-size: 14.667px; /* 11pt */
+  line-height: 1.5;
+  color: #000;
+  outline: none;
+  min-height: 100%;
+  caret-color: #000;
+  word-break: break-word;
+}
+.doc-page .ProseMirror p {
+  margin: 0 0 0.35em;
+}
+.doc-page .ProseMirror h1 {
+  font-size: 26.667px; /* 20pt */
+  font-weight: 400;
+  line-height: 1.25;
+  margin: 0.8em 0 0.3em;
+}
+.doc-page .ProseMirror h2 {
+  font-size: 21.333px; /* 16pt */
+  font-weight: 400;
+  line-height: 1.3;
+  margin: 0.75em 0 0.25em;
+}
+.doc-page .ProseMirror h3 {
+  font-size: 18.667px; /* 14pt */
+  font-weight: 400;
+  color: #434343;
+  line-height: 1.3;
+  margin: 0.7em 0 0.2em;
+}
+.doc-page .ProseMirror > :first-child {
+  margin-top: 0;
+}
+.doc-page .ProseMirror ul,
+.doc-page .ProseMirror ol {
+  padding-left: 2em;
+  margin: 0 0 0.35em;
+}
+.doc-page .ProseMirror ul {
+  list-style: disc;
+}
+.doc-page .ProseMirror ul ul {
+  list-style: circle;
+}
+.doc-page .ProseMirror ol {
+  list-style: decimal;
+}
+.doc-page .ProseMirror li > p {
+  margin: 0;
+}
+.doc-page .ProseMirror strong {
+  font-weight: 700;
+}
+.doc-page .ProseMirror a {
+  color: #1155cc;
+  text-decoration: underline;
+}
+.doc-page .ProseMirror code {
+  font-family: 'Roboto Mono', Consolas, monospace;
+  background: #f1f3f4;
+  padding: 0 3px;
+  border-radius: 3px;
+}
+.doc-page .ProseMirror blockquote {
+  border-left: 1px solid var(--color-line);
+  padding-left: 1em;
+  color: var(--color-ink-2);
+}
+.doc-page .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #80868b;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+input[list]::-webkit-calendar-picker-indicator {
+  display: none !important;
+}
+
+dialog::backdrop {
+  background: rgb(32 33 36 / 0.45);
+}

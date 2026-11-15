@@ -24,6 +24,7 @@
     "@tiptap/starter-kit": "^3.34.0",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.18",
+    "lucide-react": "^1.73.0",
     "mammoth": "^1.13.0",
     "marked": "^18.2.0",
     "postgres": "^4.1.1",
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.69.1",
     "@cloudflare/workers-types": "^5.20261115.1",
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.3.5",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
