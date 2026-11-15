@@ -49,6 +49,7 @@ test.describe('sign-in', () => {
 
 test.describe('session edge cases', () => {
   test('switching account right after typing still saves the edit', async ({ browser }) => {
+    test.slow(); // several sequential round trips to production (save, logout, re-login, verify)
     const alice = await asUser(browser, 'alice');
     const doc = await createDoc(alice.request, `Switch ${stamp()}`, 'start');
     const { page } = alice;
