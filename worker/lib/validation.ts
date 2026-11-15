@@ -11,10 +11,24 @@ const titleSchema = z
   .min(1, "Title can't be empty.")
   .max(TITLE_MAX, `Title must be at most ${TITLE_MAX} characters.`);
 
-const contentSchema = z.looseObject({
-  type: z.literal('doc', { error: 'Content must be a document.' }),
-  content: z.array(z.unknown()).optional(),
-});
+const MAX_DEPTH = 64;
+
+/** Structural ProseMirror check: every node is an object with a string type; text nodes are non-empty. */
+function isValidNode(node: unknown, depth: number): boolean {
+  if (depth > MAX_DEPTH || typeof node !== 'object' || node === null || Array.isArray(node)) return false;
+  const n = node as { type?: unknown; text?: unknown; content?: unknown };
+  if (typeof n.type !== 'string' || n.type.length === 0) return false;
+  if (n.type === 'text' && (typeof n.text !== 'string' || n.text.length === 0)) return false;
+  if (n.content === undefined) return true;
+  return Array.isArray(n.content) && n.content.every((c) => isValidNode(c, depth + 1));
+}
+
+const contentSchema = z
+  .looseObject({
+    type: z.literal('doc', { error: 'Content must be a document.' }),
+    content: z.array(z.unknown()).optional(),
+  })
+  .refine((doc) => isValidNode(doc, 0), 'Document content is malformed.');
 
 export const loginSchema = z.object({ email: emailSchema });
 

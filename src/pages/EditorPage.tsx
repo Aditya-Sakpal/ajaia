@@ -132,7 +132,8 @@ function DocumentEditor({ initial }: { initial: Document }) {
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', onBeforeUnload);
-      void queue.flush().finally(() => queue.dispose());
+      // Flush only: StrictMode re-runs effects on the same queue, so it must stay usable.
+      void queue.flush();
     };
   }, [queue]);
 

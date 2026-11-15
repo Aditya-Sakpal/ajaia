@@ -3,6 +3,14 @@ import type { SaveState } from '../editor/saveQueue';
 
 /** Docs-style save indicator next to the title. Copy fixed by the plan's Global Constraints. */
 export function SaveStatus({ state, onRetry }: { state: SaveState; onRetry(): void }) {
+  return (
+    <span data-save-state={state} className="contents">
+      <Label state={state} onRetry={onRetry} />
+    </span>
+  );
+}
+
+function Label({ state, onRetry }: { state: SaveState; onRetry(): void }) {
   if (state === 'idle') {
     return (
       <span className="flex items-center gap-1.5 text-ink-3">

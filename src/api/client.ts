@@ -11,14 +11,19 @@ export class ApiError extends Error {
   }
 }
 
+/** keepalive lets a save finish while the tab is closing; browsers cap keepalive bodies at 64 KB. */
+const KEEPALIVE_MAX = 60_000;
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;
+  const payload = body !== undefined ? JSON.stringify(body) : undefined;
   try {
     res = await fetch(`/api${path}`, {
       method,
       credentials: 'same-origin',
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      headers: payload !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      body: payload,
+      keepalive: method !== 'GET' && (payload?.length ?? 0) < KEEPALIVE_MAX,
     });
   } catch {
     throw new ApiError(0, 'network_error', "Can't reach the server. Check your connection.", null);

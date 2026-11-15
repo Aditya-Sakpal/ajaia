@@ -24,3 +24,8 @@ coverage/
 
 # local design references (not part of the product)
 ui_references/
+
+# Playwright
+test-results/
+playwright-report/
+.impeccable/review/

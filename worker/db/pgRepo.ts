@@ -14,9 +14,12 @@ export class PgRepo implements Repo {
     private readonly db: PostgresJsDatabase,
   ) {}
 
-  /** One client per request: Hyperdrive does the pooling (Cloudflare guidance). */
+  /**
+   * One client per request with a single connection: Hyperdrive pools in production, and locally
+   * (direct to Aiven, max_connections=20) this keeps concurrent requests from exhausting the server.
+   */
   static fromConnectionString(url: string): PgRepo {
-    const client = postgres(url, { max: 5, fetch_types: false });
+    const client = postgres(url, { max: 1, fetch_types: false, connect_timeout: 10 });
     return new PgRepo(client, drizzle(client));
   }
 

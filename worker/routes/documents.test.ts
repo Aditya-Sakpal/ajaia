@@ -120,6 +120,13 @@ describe('documents API', () => {
     expect((await patch(alice, { version: 1 })).status).toBe(400);
   });
 
+  it('rejects content the editor cannot load (empty text nodes, non-object nodes)', async () => {
+    const bad = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '' }] }] };
+    expect((await patch(alice, { version: 1, content: bad })).status).toBe(400);
+    expect((await patch(alice, { version: 1, content: { type: 'doc', content: [42] } })).status).toBe(400);
+    expect((await patch(alice, { version: 1, content: { type: 'doc', content: [{ content: [] }] } })).status).toBe(400);
+  });
+
   it('content over 1 MB → 413', async () => {
     const res = await patch(alice, { version: 1, content: doc('x'.repeat(1_100_000)) });
     expect(res.status).toBe(413);
