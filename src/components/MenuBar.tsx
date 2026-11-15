@@ -14,6 +14,8 @@ interface Props {
   editable: boolean;
   isOwner: boolean;
   onNew(): void;
+  onImportNew(): void;
+  onInsertFile(): void;
   onRename(): void;
   onShare(): void;
   onDelete(): void;
@@ -24,7 +26,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
 const mod = isMac ? '⌘' : 'Ctrl+';
 
 /** Docs-style menu row. Only real commands — nothing decorative. */
-export function MenuBar({ editor, editable, isOwner, onNew, onRename, onShare, onDelete, onHome }: Props) {
+export function MenuBar({ editor, editable, isOwner, onNew, onImportNew, onInsertFile, onRename, onShare, onDelete, onHome }: Props) {
   const [open, setOpen] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -45,8 +47,12 @@ export function MenuBar({ editor, editable, isOwner, onNew, onRename, onShare, o
 
   const menus: Record<string, Section[]> = {
     File: [
-      [{ label: 'New document', run: onNew }],
       [
+        { label: 'New document', run: onNew },
+        { label: 'Import file as new document…', run: onImportNew },
+      ],
+      [
+        { label: 'Insert file into this document…', disabled: !editable, run: onInsertFile },
         { label: 'Rename', disabled: !editable, run: onRename },
         { label: 'Share…', run: onShare },
         { label: 'Delete', disabled: !isOwner, run: onDelete },

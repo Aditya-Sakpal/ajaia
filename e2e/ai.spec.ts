@@ -75,3 +75,41 @@ test.describe('AI writing assistant', () => {
     await carol.context.close();
   });
 });
+
+test.describe('editor File menu import', () => {
+  test('Insert file into this document adds the file at the cursor', async ({ browser }) => {
+    const alice = await asUser(browser, 'alice');
+    const doc = await createDoc(alice.request, `Insert ${stamp()}`, 'Existing draft.');
+    const { page } = alice;
+    await page.goto(`/d/${doc.id}`);
+    await page.locator('.ProseMirror').click();
+    await page.keyboard.press('End');
+    await page.getByRole('button', { name: 'File' }).click();
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('menuitem', { name: 'Insert file into this document…' }).click();
+    await (await chooser).setFiles({ name: 'extra.md', mimeType: 'text/markdown', buffer: Buffer.from('## Imported section\n\n- point one') });
+    const body = page.locator('.ProseMirror');
+    await expect(body.locator('h2')).toHaveText('Imported section');
+    await expect(body).toContainText('Existing draft.');
+    await deleteDoc(alice.request, doc.id);
+    await alice.context.close();
+  });
+
+  test('Import file as new document opens it', async ({ browser }) => {
+    const alice = await asUser(browser, 'alice');
+    const doc = await createDoc(alice.request, `Import from editor ${stamp()}`, 'x');
+    const { page } = alice;
+    await page.goto(`/d/${doc.id}`);
+    await page.getByRole('button', { name: 'File' }).click();
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('menuitem', { name: 'Import file as new document…' }).click();
+    const name = `notes-${stamp()}.txt`;
+    await (await chooser).setFiles({ name, mimeType: 'text/plain', buffer: Buffer.from('hello from a text file') });
+    await expect(page.locator('#doc-title')).toHaveValue(name.replace(/\.txt$/, ''));
+    await expect(page.locator('.ProseMirror')).toContainText('hello from a text file');
+    const newId = page.url().split('/d/')[1]!;
+    await deleteDoc(alice.request, newId);
+    await deleteDoc(alice.request, doc.id);
+    await alice.context.close();
+  });
+});

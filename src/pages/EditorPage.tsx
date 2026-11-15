@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { EditorContent, useEditor, type Editor, type JSONContent } from '@tiptap/react';
-import { Copy, Lock, RotateCw, Users } from 'lucide-react';
+import { Copy, Lock, RotateCw, Users, X } from 'lucide-react';
 import { DEFAULT_TITLE, TITLE_MAX, type DocJSON, type Document, type Share } from '../../shared/types';
 import { api, ApiError } from '../api/client';
 import { AccountMenu } from '../components/AccountMenu';
@@ -15,6 +15,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { editorExtensions } from '../editor/extensions';
 import { AiAutocomplete } from '../editor/autocomplete';
 import { AiBar } from '../components/AiBar';
+import { generateJSON } from '@tiptap/core';
+import { IMPORT_ACCEPT, fileToHtml, titleFromFilename, validateImportFile } from '../import/fileImport';
 import { createSaveQueue, type SaveState } from '../editor/saveQueue';
 import { isSameSnapshot, type Snapshot } from '../editor/snapshot';
 import { useAuth } from '../lib/auth';
@@ -96,6 +98,9 @@ function DocumentEditor({ initial }: { initial: Document }) {
   const editorRef = useRef<Editor | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const leavingRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const importModeRef = useRef<'new' | 'insert'>('new');
+  const [importNotice, setImportNotice] = useState<{ tone: 'danger' | 'info'; text: string } | null>(null);
 
   const handleLost = useCallback(() => setBanner('lost'), []);
 
@@ -261,6 +266,36 @@ function DocumentEditor({ initial }: { initial: Document }) {
     }
   }
 
+  function pickFile(mode: 'new' | 'insert') {
+    importModeRef.current = mode;
+    fileInputRef.current?.click();
+  }
+
+  /** File → Import (new document) or Insert (at the cursor). Same converter as the documents page. */
+  async function handleFile(file: File) {
+    const invalid = validateImportFile(file);
+    if (invalid) {
+      setImportNotice({ tone: 'danger', text: `${file.name}: ${invalid}` });
+      return;
+    }
+    setImportNotice({ tone: 'info', text: `Importing ${file.name}…` });
+    try {
+      const html = (await fileToHtml(file)) || '<p></p>';
+      if (importModeRef.current === 'insert' && editor) {
+        editor.chain().focus().insertContentAt(editor.state.selection.to, html).run();
+        setImportNotice(null);
+        return;
+      }
+      await queue.flush();
+      const content = generateJSON(html, editorExtensions) as DocJSON;
+      const doc = await api.post<Document>('/documents', { title: titleFromFilename(file.name), content });
+      setImportNotice(null);
+      navigate(`/d/${doc.id}`);
+    } catch (err) {
+      setImportNotice({ tone: 'danger', text: `${file.name}: ${err instanceof Error ? err.message : 'Import failed.'}` });
+    }
+  }
+
   async function createNew() {
     await queue.flush();
     try {
@@ -378,6 +413,8 @@ function DocumentEditor({ initial }: { initial: Document }) {
             editable={editable}
             isOwner={isOwner}
             onNew={createNew}
+            onImportNew={() => pickFile('new')}
+            onInsertFile={() => pickFile('insert')}
             onRename={() => titleInputRef.current?.select()}
             onShare={openShare}
             onDelete={() => setConfirmDelete(true)}
@@ -444,6 +481,30 @@ function DocumentEditor({ initial }: { initial: Document }) {
           You’ve been signed out, so your latest edits couldn’t be saved.
         </Notice>
       )}
+      {importNotice && (
+        <Notice
+          tone={importNotice.tone}
+          action={
+            importNotice.tone === 'danger' ? (
+              <NoticeButton onClick={() => setImportNotice(null)} icon={<X className="size-4" />} label="Dismiss" />
+            ) : undefined
+          }
+        >
+          {importNotice.text}
+        </Notice>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={IMPORT_ACCEPT}
+        className="hidden"
+        data-testid="editor-file-input"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (f) void handleFile(f);
+        }}
+      />
       {saveState === 'error' && banner === null && saveError && (
         <Notice tone="danger" action={<NoticeButton onClick={() => queue.retry()} icon={<RotateCw className="size-4" />} label="Retry" />}>
           Your latest changes aren’t saved yet. {saveError}
