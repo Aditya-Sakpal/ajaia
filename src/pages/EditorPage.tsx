@@ -81,6 +81,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
   const [savedTitle, setSavedTitle] = useState(initial.title);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [banner, setBanner] = useState<Banner>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [shares, setShares] = useState<Share[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
   const [headings, setHeadings] = useState<Heading[]>([]);
@@ -101,9 +102,11 @@ function DocumentEditor({ initial }: { initial: Document }) {
             content: snap.content,
           });
           versionRef.current = updated.version;
+          setSaveError(null);
           savedTitleRef.current = updated.title;
           setSavedTitle(updated.title);
         } catch (err) {
+          setSaveError(err instanceof ApiError ? err.message : 'Couldn’t save your changes.');
           if (err instanceof ApiError) {
             if (err.status === 409) {
               setBanner('conflict');
@@ -303,6 +306,11 @@ function DocumentEditor({ initial }: { initial: Document }) {
       {banner === 'lost' && (
         <Notice tone="danger" action={<Link to="/" className="rounded-full px-3 py-1.5 font-medium hover:bg-white/60">Back to documents</Link>}>
           You no longer have access to this document. It may have been deleted or unshared.
+        </Notice>
+      )}
+      {saveState === 'error' && banner === null && saveError && (
+        <Notice tone="danger" action={<NoticeButton onClick={() => queue.retry()} icon={<RotateCw className="size-4" />} label="Retry" />}>
+          Your latest changes aren’t saved yet. {saveError}
         </Notice>
       )}
       {!canEdit && banner === null && (

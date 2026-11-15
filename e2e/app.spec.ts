@@ -120,6 +120,27 @@ test.describe('editing', () => {
     await alice.context.close();
   });
 
+  test('a failed save explains why and recovers with Retry', async ({ browser }) => {
+    const alice = await asUser(browser, 'alice');
+    const doc = await createDoc(alice.request, `Offline ${stamp()}`, 'start');
+    const { page } = alice;
+    await page.goto(`/d/${doc.id}`);
+    await page.route('**/api/documents/*', (route) =>
+      route.request().method() === 'PATCH' ? route.abort('internetdisconnected') : route.continue(),
+    );
+    await page.locator('.ProseMirror').click();
+    await page.keyboard.type(' written offline');
+    await expect(page.getByText(/Your latest changes aren’t saved yet/)).toBeVisible();
+    await expect(page.getByText(/Can’t reach the server|Can't reach the server/)).toBeVisible();
+    await page.unroute('**/api/documents/*');
+    await page.getByRole('button', { name: 'Retry' }).first().click();
+    await waitSaved(page);
+    const saved = await (await alice.request.get(`/api/documents/${doc.id}`)).json();
+    expect(JSON.stringify(saved.content)).toContain('written offline');
+    await deleteDoc(alice.request, doc.id);
+    await alice.context.close();
+  });
+
   test('leaving the editor right after typing still saves', async ({ browser }) => {
     const alice = await asUser(browser, 'alice');
     const doc = await createDoc(alice.request, `Leave ${stamp()}`, '');
