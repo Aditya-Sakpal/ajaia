@@ -5,7 +5,6 @@ import { Lock, RotateCw, Users } from 'lucide-react';
 import { DEFAULT_TITLE, TITLE_MAX, type DocJSON, type Document, type Share } from '../../shared/types';
 import { api, ApiError } from '../api/client';
 import { AccountMenu } from '../components/AccountMenu';
-import { Avatar } from '../components/Avatar';
 import { FullPageSpinner } from '../components/FullPageSpinner';
 import { LogoMark } from '../components/Logo';
 import { SaveStatus } from '../components/SaveStatus';
@@ -326,14 +325,6 @@ function DocumentEditor({ initial }: { initial: Document }) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <div className="hidden -space-x-1.5 md:flex" aria-label="People with access">
-            {[{ user: initial.owner, label: 'Owner' }, ...(shares ?? []).map((s) => ({ user: s.user, label: s.role === 'editor' ? 'Editor' : 'Viewer' }))]
-              .filter((p) => p.user.id !== me.id)
-              .slice(0, 4)
-              .map((p) => (
-                <Avatar key={p.user.id} user={p.user} size={28} title={`${p.user.name} · ${p.label === 'Owner' ? 'owner' : `has ${p.label} access`}`} />
-              ))}
-          </div>
           <button
             type="button"
             onClick={openShare}

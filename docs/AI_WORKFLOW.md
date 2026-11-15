@@ -7,7 +7,7 @@
   - *superpowers*: writing-plans, executing-plans, test-driven-development, systematic-debugging, verification-before-completion and requesting-code-review.
   - *impeccable*: UI direction, design-token discipline, a design detector and a separate finish review.
 - **Playwright**, driven by Claude, to open the app in a real browser and try to break it.
-- A separate review subagent with a fresh context reviewed the whole branch, so the review wasn't anchored on the context that wrote the code.
+- Two separate reviewers with fresh context: a code reviewer for the whole branch and a design finish reviewer working from screenshots. Neither was anchored on the context that wrote the code.
 
 ## Where AI sped me up
 
@@ -26,12 +26,21 @@ Every entry is in [specs/ai-decision-log.md](../specs/ai-decision-log.md). The m
 4. **The API accepted documents the editor couldn't load** (empty text nodes). I added a structural ProseMirror validation, with a failing test first.
 5. **A false-positive test helper.** The first e2e helper waited for the word "Saved", which is also shown before any edit, so tests "passed" without saving. I exposed the real save state and waited for that instead.
 6. **Unnecessary work in generated code:** a session check that ran twice and a document loaded twice per save. Both were trimmed.
-7. **Design.** The design skill wanted to invent a novel visual direction. I pinned a near-faithful Google Docs look with no Google branding, because reviewers should recognise every control instantly.
+7. **Fresh-context code review.** No critical issues, but five important client-side gaps the tests hadn't covered:
+   - the keepalive save limit was counted in characters instead of bytes, which broke saving for CJK documents;
+   - edits were lost when leaving after a failed save;
+   - typing was lost when switching account from the editor;
+   - a sign-in redirect loop after being signed out in another tab;
+   - a tab silently acting as another user after a switch in a second tab.
+
+   Each fix got a failing test first: a unit test for the byte limit, Playwright tests for the rest. Minor findings I chose not to fix are listed in SUBMISSION.md.
+8. **Design review.** A separate design reviewer compared screenshots against my Google Docs reference. It flagged a share list that wrongly said "Not shared yet" while it was still loading, the missing menu bar, a chrome font that differed by operating system, avatars that implied people were live in the document, and the viewer role being stated six times. All were fixed and re-scored.
+9. **Design.** The design skill wanted to invent a novel visual direction. I pinned a near-faithful Google Docs look with no Google branding, because reviewers should recognise every control instantly.
 
 ## How I verified correctness, UX and reliability
 
-- **Tests that were seen to fail first:** 83 Vitest tests covering the full owner/editor/viewer/stranger matrix through the real HTTP routes, version conflicts, validation limits, save-queue concurrency, and import edge cases.
-- **The real browser against the real deployment:** the Playwright suite passes against the production URL, and its fixtures clean up the documents they create.
+- **Tests that were seen to fail first:** 88 Vitest tests covering the full owner/editor/viewer/stranger matrix through the real HTTP routes, version conflicts, validation limits, save-queue concurrency, and import edge cases.
+- **The real browser against the real deployment:** the 21-test Playwright suite passes against the production URL, and its fixtures clean up the documents they create.
 - **Infrastructure checks, not assumptions:** `/api/health` checked locally and in production before building features; 20 concurrent requests sent to production; Aiven's connection limit and live connections queried directly.
 - **UX checks:** screenshots at 1440 px and 390 px for every screen and role (owner, editor, viewer). Fixes found this way include a mobile header overflow and a collapsed share input on phones. The design detector and a separate design reviewer ran after that.
 - **Security checks:** the repo is public, so every commit's staged diff was scanned for the database credentials; secrets live only in `.env`, `.dev.vars` and Wrangler secrets.

@@ -29,8 +29,9 @@ Switch users from the avatar menu (top right) → **Switch account**.
 | `worker/` | Hono API on Cloudflare Workers (routes, permissions, sessions, validation, Drizzle repo) |
 | `shared/` | API types shared by client and server |
 | `drizzle/`, `scripts/seed.ts` | SQL migrations and idempotent demo seed |
-| `e2e/`, `playwright.config.ts` | Playwright end-to-end tests (run against local or production) |
-| `worker/**/*.test.ts`, `src/**/*.test.ts` | Vitest unit/API tests (83) |
+| `e2e/`, `playwright.config.ts` | Playwright end-to-end tests, 21 (run against local or production) |
+| `worker/**/*.test.ts`, `src/**/*.test.ts` | Vitest unit/API tests (88) |
+| `PRODUCT.md`, `DESIGN.md`, `.impeccable/` | Product record, design system and the UI direction contract used while building |
 | `.github/workflows/ci.yml` | CI: typecheck, unit tests, build |
 | `package.json`, `wrangler.jsonc`, `vite.config.ts`, `tsconfig*.json`, `.env.example`, `.dev.vars.example` | Build, deploy and config (no secrets) |
 
@@ -40,6 +41,14 @@ Switch users from the avatar menu (top right) → **Switch account**.
 
 **Deliberately not built:** real-time co-editing, comments, version history, images/tables, export, real authentication.
 
-**Incomplete / rough edges:** after a version conflict the only option is to reload, so unsaved local edits in the stale tab are dropped (the banner says so). The main JS bundle is ~500 kB because the editor isn't lazy-loaded. The Aiven free-tier database may power off after long inactivity; if the app shows connection errors, it needs restarting.
+**Incomplete / rough edges:**
+- After a version conflict the only option is to reload, so unsaved local edits in the stale tab are dropped (the banner says so).
+- A save whose response is lost in transit can show a conflict even though it succeeded.
+- Size limits count characters rather than bytes.
+- Text files between 1 and 2 MB pass the import check but are larger than the 1 MB document limit, so they fail with a "too large" error.
+- The server checks document structure but not every mark or attribute.
+- The main JS bundle is about 500 kB because the editor isn't lazy-loaded.
+- Running locally, the dev server connects directly to Aiven and occasionally stalls under heavy parallel load. Production goes through Hyperdrive, so run the e2e suite against production.
+- The Aiven free-tier database may power off after long inactivity; if the app shows connection errors, it needs restarting.
 
 **Next 2–4 hours:** real-time co-editing with Yjs on a Durable Object (live merge and presence); version history with restore (also fixes the conflict data loss); Markdown/PDF export; a "Request edit access" action for viewers; lazy-loading the editor.

@@ -52,7 +52,7 @@ export function Toolbar({ editor, editable, viewHint }: { editor: Editor; editab
     <div
       role="toolbar"
       aria-label="Formatting"
-      className="flex h-10 items-center gap-0.5 overflow-x-auto rounded-full bg-pill px-2 [scrollbar-width:none] max-sm:[mask-image:linear-gradient(to_right,black_85%,transparent)]"
+      className={`flex h-10 items-center gap-0.5 overflow-x-auto rounded-full bg-pill px-2 [scrollbar-width:none] ${editable ? 'max-sm:[mask-image:linear-gradient(to_right,black_85%,transparent)]' : ''}`}
     >
       {editable ? (
         <>
@@ -119,7 +119,9 @@ export function Toolbar({ editor, editable, viewHint }: { editor: Editor; editab
             <RemoveFormatting />
           </ToolButton>
         </>
-      ) : null}
+      ) : (
+        <span className="px-2 text-[14px] text-ink-2">View only</span>
+      )}
       <span
         title={editable ? undefined : viewHint}
         className={`ml-auto shrink-0 items-center gap-2 rounded-full px-3 py-1 text-[14px] text-ink-2 ${editable ? 'hidden sm:flex' : 'flex'}`}

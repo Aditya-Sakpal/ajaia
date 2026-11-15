@@ -8,8 +8,14 @@ const runStart = new Date(Date.now() - 5_000).toISOString();
 // Safety net: delete anything this run created that a failing test left behind (all test docs are Alice's).
 test.afterAll(async ({ browser }) => {
   const alice = await asUser(browser, 'alice');
-  const { owned } = (await (await alice.request.get('/api/documents')).json()) as { owned: { id: string; updatedAt: string }[] };
-  for (const d of owned) if (!SEED_DOC_IDS.has(d.id) && d.updatedAt >= runStart) await deleteDoc(alice.request, d.id);
+  const { owned } = (await (await alice.request.get('/api/documents')).json()) as {
+    owned: { id: string; title: string; updatedAt: string }[];
+  };
+  // Only titles this suite generates (they carry a stamp), so a reviewer's own documents are never touched.
+  const ours = (t: string) => /[0-9a-z]{7,}-[0-9a-z]{4}/.test(t) || t === 'Renamed by e2e';
+  for (const d of owned) {
+    if (!SEED_DOC_IDS.has(d.id) && d.updatedAt >= runStart && ours(d.title)) await deleteDoc(alice.request, d.id);
+  }
   await alice.context.close();
 });
 

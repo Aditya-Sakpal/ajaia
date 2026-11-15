@@ -25,7 +25,7 @@ Sign-in is a demo account picker with no passwords. Three users are seeded:
 ## What works
 
 - **Documents:** create, rename (inline title), edit, delete (owner only). The list is split into *My documents* and *Shared with me*, shows the owner and your role for each document, and has a search box.
-- **Editing:** TipTap editor with bold, italic, underline, Normal text or Heading 1–3, bulleted and numbered lists, undo/redo and clear formatting. The usual keyboard shortcuts work. A document outline on the left lists the headings.
+- **Editing:** TipTap editor with bold, italic, underline, Normal text or Heading 1–3, bulleted and numbered lists, undo/redo and clear formatting, available from the toolbar, a File / Edit / Format menu bar and the usual keyboard shortcuts. A document outline on the left lists the headings.
 - **Autosave:** saves 1 s after you stop typing. Only one save is in flight at a time, the status is always visible, and a failed save shows *Couldn't save — Retry*. Leaving the page saves any pending change first.
 - **Conflict safety:** every save carries the document version. If someone else (or another tab) saved first, the server returns 409 and you are asked to reload. Your save never silently overwrites theirs.
 - **Sharing:** the owner adds people by email as *Editor* or *Viewer*, can change their role, or remove them. Every rule is enforced by the server:
@@ -37,7 +37,9 @@ Sign-in is a demo account picker with no passwords. Three users are seeded:
   | delete, manage sharing | ✅ | 403 | 403 | 404 |
 
 - **Import:** `.txt`, `.md` and `.docx` files up to **2 MB** become new documents. In `.docx` files, headings, bold, italic and lists are kept; **images and tables are dropped**. Scripts and event handlers are stripped from the content.
-- **Losing access while a document is open:** if the owner removes you or deletes the document, your next save shows "You no longer have access to this document" and the editor locks.
+- **Losing access while a document is open:** if the owner removes you or deletes the document, your next save shows "You no longer have access to this document" and the editor locks. If you were signed out, or your role changed, you get a specific message instead.
+- **Sessions across tabs:** all tabs share one session cookie. A tab that regains focus checks who is signed in, so switching account in one tab is picked up by the others. Switching account from the editor saves pending edits first.
+- **Failed saves:** the reason is shown (offline, too large, …) with a Retry button, and leaving the page with unsaved changes asks first.
 
 ## Run locally
 
@@ -54,7 +56,7 @@ npm run dev                       # http://localhost:5173 (SPA + Worker API via 
 
 | Command | What it does |
 |---|---|
-| `npm test` | Vitest: permission matrix, API access/validation via `app.request()`, repository semantics, autosave queue, file import (83 tests) |
+| `npm test` | Vitest: permission matrix, API access/validation via `app.request()`, repository semantics, autosave queue, file import (88 tests) |
 | `npm run test:e2e` | Playwright browser tests against `BASE_URL` (default `http://localhost:5173`); they create and delete their own documents |
 | `npm run typecheck` | TypeScript checks for the SPA, the Worker and the tooling |
 | `npm run deploy` | Build and `wrangler deploy` |

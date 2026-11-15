@@ -5,7 +5,7 @@ import { FileUp, LoaderCircle } from 'lucide-react';
 import type { DocJSON, Document } from '../../shared/types';
 import { api, ApiError } from '../api/client';
 import { editorExtensions } from '../editor/extensions';
-import { IMPORT_ACCEPT, IMPORT_HELP, fileToHtml, titleFromFilename, validateImportFile } from '../import/fileImport';
+import { IMPORT_ACCEPT, IMPORT_TYPES, fileToHtml, titleFromFilename, validateImportFile } from '../import/fileImport';
 
 /** "Import file" tile for the documents home: .txt/.md/.docx → new editable document. */
 export function ImportTile({ onError }: { onError(message: string | null): void }) {
@@ -47,7 +47,9 @@ export function ImportTile({ onError }: { onError(message: string | null): void 
           <FileUp className="size-14 stroke-[1.25] text-action" aria-hidden />
         )}
         <span id="import-help" className="absolute inset-x-2 bottom-3 text-[12px] leading-4 text-ink-3">
-          {IMPORT_HELP}
+          {IMPORT_TYPES}
+          <br />
+          Up to 2 MB
         </span>
       </button>
       <p className="mt-2 text-[14px] font-medium text-ink">{busy ? 'Importing…' : 'Import a file'}</p>

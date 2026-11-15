@@ -45,8 +45,14 @@ The whole app is one Cloudflare Worker. Requests to `/api/*` run the Hono API (`
 
 ## Testing
 
-- **Vitest, 83 tests:** the permission matrix, API access and validation through `app.request()` (as owner, editor, viewer and stranger), repository semantics, the save queue's concurrency, and file conversion, including hostile markdown and corrupt `.docx` files.
-- **Playwright, 16 browser tests** (passing against production): formatting persists after a reload; rename, including a blank title; autosave over a slow network with no false conflict; leaving right after typing; a two-tab conflict; HTML in titles; markdown, `.docx` and invalid imports; sharing as a viewer, including a direct API write attempt; revoking access mid-session; delete; and a stranger opening a URL.
+- **Vitest, 88 tests:** the permission matrix, API access and validation through `app.request()` (as owner, editor, viewer and stranger), repository semantics, the save queue's concurrency, and file conversion, including hostile markdown and corrupt `.docx` files.
+- **Playwright, 21 browser tests** (passing against production):
+  - persistence: formatting survives a reload; rename, including a blank title
+  - saving: autosave over a slow network with no false conflict; offline save with Retry; leaving right after typing; leaving after a failed save asks first
+  - sessions: switching account mid-typing; being signed out in another tab; a tab following an account switch made in another tab
+  - conflicts and safety: a two-tab conflict; HTML in titles
+  - import: markdown, `.docx` and invalid files
+  - sharing: sharing as a viewer, including a direct API write attempt; revoking access mid-session; delete; a stranger opening a URL
 
 ## Deliberately not built
 
