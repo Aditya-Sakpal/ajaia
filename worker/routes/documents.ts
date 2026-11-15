@@ -4,11 +4,9 @@ import type { AppEnv } from '../app';
 import { loadDocWithAccess, ownerOf, toDocumentDto } from '../lib/access';
 import { ApiError, notFound } from '../lib/errors';
 import { can } from '../lib/permissions';
-import { requireUser } from '../lib/session';
 import { createDocumentSchema, parseBody, patchDocumentSchema } from '../lib/validation';
 
 export const documentRoutes = new Hono<AppEnv>()
-  .use('*', requireUser)
   .get('/', async (c) => c.json(await c.var.repo.listDocumentsForUser(c.var.user.id)))
   .post('/', async (c) => {
     const input = await parseBody(c, createDocumentSchema);

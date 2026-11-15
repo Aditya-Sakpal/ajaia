@@ -3,8 +3,10 @@ import type { User } from '../shared/types';
 import type { Repo } from './db/repo';
 import type { Env } from './env';
 import { ApiError, errorBody } from './lib/errors';
+import { requireUser } from './lib/session';
 import { authRoutes } from './routes/auth';
 import { documentRoutes } from './routes/documents';
+import { shareRoutes } from './routes/shares';
 
 export type AppEnv = { Bindings: Env; Variables: { user: User; repo: Repo } };
 
@@ -48,7 +50,9 @@ export function createApp(deps: AppDeps) {
   });
 
   app.route('/', authRoutes);
+  app.use('/documents/*', requireUser);
   app.route('/documents', documentRoutes);
+  app.route('/documents', shareRoutes);
 
   app.notFound((c) => c.json(errorBody('not_found', 'Not found.'), 404));
 
