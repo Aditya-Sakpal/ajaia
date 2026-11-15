@@ -17,3 +17,11 @@ Format: **Date — Area** · AI proposed → What we did → Why → How verifie
 **2026-11-15 — e2e "Saved" wait was a false positive.** The first e2e helper waited for the text "Saved", which is also shown before any edit, so tests reloaded before the save landed → Exposed `data-save-state` and wait for `saved`, which only occurs when nothing is pending → Verify: rename / formatting / slow-network e2e tests.
 
 **2026-11-15 — Local DB connection exhaustion.** Per-request postgres clients with `max: 5` hung the local dev server under e2e load (Aiven max_connections = 20) → `max: 1` per request → Verify: full e2e suite locally.
+
+**2026-11-15 — Save status stuck on "Saved" in dev (caught by e2e).** The generated editor disposed the save queue in an effect cleanup; React StrictMode re-runs effects on the same instance, so the status listener was cleared and the UI never left "Saved" → Cleanup now only flushes → Verify: e2e formatting/rename tests wait for the real `saved` state.
+
+**2026-11-15 — Invalid documents accepted by the API (caught by e2e).** A test fixture created a paragraph with an empty text node; the API stored it and TipTap refused to load it → Added a structural ProseMirror check (string `type`, non-empty text nodes, depth limit) to the content schema, test-first → Verify: `rejects content the editor cannot load` API test.
+
+**2026-11-15 — Over-generated middleware/queries (self-review).** First draft ran `requireUser` twice on share routes and loaded the document twice per PATCH → session check mounted once at `/documents/*`; PATCH authorizes once and checks the role from the body → Verify: full API suite unchanged and green.
+
+**2026-11-15 — Design direction.** The design skill wanted to roll a novel visual direction; I pinned "near-faithful Google Docs look, no Google branding" because reviewers should recognise every control instantly → Verify: screenshot round at 1440 px and 390 px.
