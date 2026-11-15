@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-15T00:00:00Z",
+  "title": "Design System: Ajaia Docs",
+  "extensions": {
+    "colorMeta": {
+      "action": { "role": "primary", "displayName": "Commit Blue", "canonical": "#0b57d0", "tonalRamp": ["#041e49", "#062e6f", "#0842a0", "#0b57d0", "#4c8df6", "#a8c7fa", "#d3e3fd", "#ecf3fe"] },
+      "action-hover": { "role": "primary", "displayName": "Commit Blue Deep", "canonical": "#0842a0" },
+      "share": { "role": "secondary", "displayName": "Share Sky", "canonical": "#c2e7ff", "tonalRamp": ["#001d35", "#003355", "#004a77", "#00639b", "#7fcfff", "#b3d7ef", "#c2e7ff", "#e6f4ff"] },
+      "share-hover": { "role": "secondary", "displayName": "Share Sky Hover", "canonical": "#b3d7ef" },
+      "share-ink": { "role": "secondary", "displayName": "Share Ink", "canonical": "#001d35" },
+      "active": { "role": "secondary", "displayName": "Pressed Blue", "canonical": "#d3e3fd" },
+      "active-ink": { "role": "secondary", "displayName": "Pressed Ink", "canonical": "#041e49" },
+      "chrome": { "role": "neutral", "displayName": "Chrome Mist", "canonical": "#f9fbfd", "tonalRamp": ["#1f1f1f", "#444746", "#5f6368", "#747775", "#c7c7c7", "#e1e3e1", "#edf2fa", "#f9fbfd"] },
+      "pill": { "role": "neutral", "displayName": "Pill Tint", "canonical": "#edf2fa" },
+      "pill-hover": { "role": "neutral", "displayName": "Pill Tint Hover", "canonical": "#dfe5ee" },
+      "hover": { "role": "neutral", "displayName": "Hover Wash", "canonical": "#e9eef6" },
+      "page": { "role": "neutral", "displayName": "Paper", "canonical": "#ffffff" },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#1f1f1f" },
+      "ink-2": { "role": "neutral", "displayName": "Ink 2", "canonical": "#444746" },
+      "ink-3": { "role": "neutral", "displayName": "Ink 3", "canonical": "#5f6368" },
+      "outline": { "role": "neutral", "displayName": "Outline", "canonical": "#747775" },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#c7c7c7" },
+      "line-soft": { "role": "neutral", "displayName": "Soft Hairline", "canonical": "#e1e3e1" },
+      "danger": { "role": "semantic", "displayName": "Danger", "canonical": "#b3261e", "tonalRamp": ["#410e0b", "#601410", "#8c1d18", "#b3261e", "#dc362e", "#f2b8b5", "#f9dedc", "#fce8e6"] },
+      "danger-bg": { "role": "semantic", "displayName": "Danger Wash", "canonical": "#fce8e6" },
+      "warn-bg": { "role": "semantic", "displayName": "Warn Wash", "canonical": "#fef7e0" },
+      "warn-ink": { "role": "semantic", "displayName": "Warn Ink", "canonical": "#5c3c00" },
+      "ok": { "role": "semantic", "displayName": "Ok", "canonical": "#146c2e" },
+      "mark-blue": { "role": "brand", "displayName": "Mark Blue", "canonical": "#2f6fde" },
+      "mark-fold": { "role": "brand", "displayName": "Mark Fold", "canonical": "#a8c7fa" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Sign-in heading only." },
+      "headline": { "displayName": "Headline", "purpose": "Dialog titles, wordmark, error-page heading." },
+      "title": { "displayName": "Title", "purpose": "Section headings in dialogs and document lists." },
+      "body": { "displayName": "Body", "purpose": "All chrome text; names take weight 500." },
+      "label": { "displayName": "Label", "purpose": "Emails, metadata, shortcuts, helper copy, role chips." },
+      "doc-body": { "displayName": "Document Body", "purpose": "Editor content at 11pt." },
+      "doc-h1": { "displayName": "Document H1", "purpose": "20pt regular heading in documents." },
+      "doc-h2": { "displayName": "Document H2", "purpose": "16pt regular heading in documents." },
+      "doc-h3": { "displayName": "Document H3", "purpose": "14pt regular heading in #434343." }
+    },
+    "shadows": [
+      { "name": "page-lift", "value": "0 1px 3px rgb(60 64 67 / 0.15)", "purpose": "Document page, paired with a 1px #c7c7c7 border." },
+      { "name": "menu", "value": "0 2px 6px 2px rgb(60 64 67 / 0.15), 0 1px 2px rgb(60 64 67 / 0.3)", "purpose": "Menubar dropdowns." },
+      { "name": "row-menu", "value": "0 2px 10px rgb(0 0 0 / 0.2)", "purpose": "Document row overflow menu." },
+      { "name": "account-menu", "value": "0 4px 16px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.1)", "purpose": "Account popover." },
+      { "name": "dialog", "value": "0 4px 24px rgb(0 0 0 / 0.25)", "purpose": "Modal dialogs over a rgb(32 33 36 / 0.45) backdrop." },
+      { "name": "search-focus", "value": "0 1px 3px rgb(0 0 0 / 0.2)", "purpose": "Search pill when focused." }
+    ],
+    "motion": [
+      { "name": "color-transition", "value": "Tailwind transition-colors (150ms cubic-bezier(0.4, 0, 0.2, 1))", "purpose": "Hover fills on rows, buttons and the Share pill." },
+      { "name": "spin", "value": "animate-spin", "purpose": "Saving, sharing and loading spinners." },
+      { "name": "pulse", "value": "animate-pulse", "purpose": "Skeleton rows in Pill Tint." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single committing action in a view (Done, confirm).",
+      "html": "<button class=\"ds-btn-primary\">Done</button>",
+      "css": ".ds-btn-primary { height: 40px; padding: 0 24px; border: none; border-radius: 9999px; background: var(--color-action, #0b57d0); color: #fff; font: 500 14px Roboto, 'Segoe UI', system-ui, sans-serif; transition: background-color 150ms; } .ds-btn-primary:hover { background: var(--color-action-hover, #0842a0); } .ds-btn-primary:focus-visible { outline: 2px solid #0b57d0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Share Pill",
+      "kind": "button",
+      "refersTo": "button-share",
+      "description": "Signature Share control in the editor header.",
+      "html": "<button class=\"ds-btn-share\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"11\" width=\"18\" height=\"11\" rx=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/></svg>Share</button>",
+      "css": ".ds-btn-share { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 20px; border: none; border-radius: 9999px; background: var(--color-share, #c2e7ff); color: var(--color-share-ink, #001d35); font: 500 14px Roboto, 'Segoe UI', system-ui, sans-serif; transition: background-color 150ms; } .ds-btn-share:hover { background: var(--color-share-hover, #b3d7ef); } .ds-btn-share:focus-visible { outline: 2px solid #0b57d0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Button",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "Secondary actions such as Cancel.",
+      "html": "<button class=\"ds-btn-text\">Cancel</button>",
+      "css": ".ds-btn-text { padding: 8px 16px; border: none; border-radius: 9999px; background: transparent; color: var(--color-action, #0b57d0); font: 500 14px Roboto, 'Segoe UI', system-ui, sans-serif; transition: background-color 150ms; } .ds-btn-text:hover { background: var(--color-hover, #e9eef6); } .ds-btn-text:focus-visible { outline: 2px solid #0b57d0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Formatting Toolbar",
+      "kind": "nav",
+      "refersTo": "toolbar-pill",
+      "description": "Full-width pill holding tool buttons with hairline group dividers.",
+      "html": "<div class=\"ds-toolbar\" role=\"toolbar\"><button class=\"ds-tool ds-tool-active\" aria-label=\"Bold\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8\"/></svg></button><button class=\"ds-tool\" aria-label=\"Italic\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"19\" x2=\"10\" y1=\"4\" y2=\"4\"/><line x1=\"14\" x2=\"5\" y1=\"20\" y2=\"20\"/><line x1=\"15\" x2=\"9\" y1=\"4\" y2=\"20\"/></svg></button><span class=\"ds-tool-divider\"></span><button class=\"ds-tool\" aria-label=\"Bulleted list\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 12h.01M3 18h.01M3 6h.01M8 12h13M8 18h13M8 6h13\"/></svg></button></div>",
+      "css": ".ds-toolbar { display: flex; align-items: center; gap: 2px; height: 40px; padding: 0 8px; border-radius: 9999px; background: var(--color-pill, #edf2fa); } .ds-tool { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: 4px; background: transparent; color: var(--color-ink-2, #444746); transition: background-color 150ms; } .ds-tool svg { width: 18px; height: 18px; } .ds-tool:hover { background: var(--color-pill-hover, #dfe5ee); } .ds-tool:focus-visible { outline: 2px solid #0b57d0; outline-offset: 2px; } .ds-tool-active, .ds-tool-active:hover { background: var(--color-active, #d3e3fd); color: #041e49; } .ds-tool-divider { width: 1px; height: 20px; margin: 0 4px; background: var(--color-line, #c7c7c7); }"
+    },
+    {
+      "name": "Outlined Field",
+      "kind": "input",
+      "refersTo": "input-outlined",
+      "description": "Email entry in the Share dialog.",
+      "html": "<input class=\"ds-input\" type=\"email\" placeholder=\"Add people by email\">",
+      "css": ".ds-input { height: 48px; padding: 0 16px; border: 1px solid #747775; border-radius: 4px; background: #fff; color: var(--color-ink, #1f1f1f); font: 400 16px Roboto, 'Segoe UI', system-ui, sans-serif; } .ds-input::placeholder { color: var(--color-ink-2, #444746); } .ds-input:focus { border-color: #0b57d0; outline: 2px solid #0b57d0; outline-offset: -2px; }"
+    },
+    {
+      "name": "Search Pill",
+      "kind": "input",
+      "refersTo": "search-pill",
+      "description": "Documents home search; turns white and lifts on focus.",
+      "html": "<label class=\"ds-search\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#444746\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input type=\"search\" placeholder=\"Search\"></label>",
+      "css": ".ds-search { display: flex; align-items: center; gap: 8px; height: 48px; max-width: 720px; padding: 0 16px; border-radius: 9999px; background: var(--color-pill, #edf2fa); } .ds-search:focus-within { background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.2); } .ds-search input { flex: 1; height: 100%; border: none; background: transparent; font: 400 16px Roboto, 'Segoe UI', system-ui, sans-serif; color: #1f1f1f; outline: none; }"
+    },
+    {
+      "name": "Role Chip",
+      "kind": "chip",
+      "refersTo": "tool-button-active",
+      "description": "Shows the signed-in user's role on a shared document.",
+      "html": "<span class=\"ds-chip ds-chip-editor\">Shared with you · Editor</span> <span class=\"ds-chip ds-chip-viewer\">Shared with you · Viewer</span>",
+      "css": ".ds-chip { display: inline-block; padding: 2px 8px; border-radius: 9999px; font: 500 12px Roboto, 'Segoe UI', system-ui, sans-serif; } .ds-chip-editor { background: #d3e3fd; color: #041e49; } .ds-chip-viewer { background: #e3e3e3; color: #444746; }"
+    },
+    {
+      "name": "Document Row",
+      "kind": "card",
+      "refersTo": "list-row",
+      "description": "Fully round hover row in the documents list.",
+      "html": "<a class=\"ds-row\" href=\"#\"><svg width=\"15\" height=\"20\" viewBox=\"0 0 15 20\"><path d=\"M1.5 0H10l5 5v13.5a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 0 18.5v-17A1.5 1.5 0 0 1 1.5 0Z\" fill=\"#2f6fde\"/><path d=\"M10 0l5 5h-3.5A1.5 1.5 0 0 1 10 3.5V0Z\" fill=\"#a8c7fa\"/><path d=\"M3.5 9.5h8M3.5 12h8M3.5 14.5h5\" stroke=\"#fff\" stroke-width=\"1.2\" stroke-linecap=\"round\"/></svg><span class=\"ds-row-title\">Q3 Planning Notes</span><span class=\"ds-row-meta\">5 minutes ago</span></a>",
+      "css": ".ds-row { display: flex; align-items: center; gap: 16px; padding: 12px; border-radius: 9999px; text-decoration: none; transition: background-color 150ms; } .ds-row:hover { background: var(--color-hover, #e9eef6); } .ds-row:focus-visible { outline: 2px solid #0b57d0; outline-offset: 2px; } .ds-row-title { flex: 1; font: 500 14px Roboto, 'Segoe UI', system-ui, sans-serif; color: #1f1f1f; } .ds-row-meta { font: 400 14px Roboto, 'Segoe UI', system-ui, sans-serif; color: #444746; }"
+    },
+    {
+      "name": "Save Status",
+      "kind": "custom",
+      "refersTo": "body",
+      "description": "Signature save-state line beside the document title.",
+      "html": "<span class=\"ds-save\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/><path d=\"m9 14 2 2 4-4\"/></svg>Saved</span> <button class=\"ds-save-error\">Couldn't save — Retry</button>",
+      "css": ".ds-save { display: inline-flex; align-items: center; gap: 6px; font: 400 13px Roboto, 'Segoe UI', system-ui, sans-serif; color: var(--color-ink-3, #5f6368); } .ds-save-error { padding: 0 4px; border: none; border-radius: 4px; background: transparent; font: 500 13px Roboto, 'Segoe UI', system-ui, sans-serif; color: var(--color-danger, #b3261e); } .ds-save-error:hover { background: var(--color-danger-bg, #fce8e6); } .ds-save-error:focus-visible { outline: 2px solid #0b57d0; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Familiar Desk",
+    "overview": "Ajaia Docs speaks the Docs grammar near-faithfully so the tool disappears: a cool off-white chrome, one rounded toolbar pill, a white Letter-size page on the canvas, a pale-blue Share pill, and one saturated action blue. Nothing is invented for decoration. Every bit of novelty the system allows goes to legibility of state: whether the document is saved, who owns it, and what role you hold.\n\nThe system is dense and quiet. Chrome text sits at 14px in Roboto; the document itself is Arial at 11pt, exactly like a word-processor page. Surfaces are flat tints of blue-grey; depth appears only where something floats (page, menus, dialogs). Shapes split cleanly: interactive controls and pills are fully round, the page and fields are nearly square.",
+    "keyCharacteristics": [
+      "Cool blue-grey chrome (#f9fbfd) around a white, hairline-edged page.",
+      "One action blue for commits; a pale Share pill as the single signature control.",
+      "Two type worlds: Roboto for the app, Arial 11pt for the document.",
+      "Fully rounded controls and hover rows; near-square page, fields and cards.",
+      "Save status and role are always visible text, never inferred."
+    ],
+    "rules": [
+      { "name": "The One Blue Rule", "body": "Commit Blue is the only saturated color in chrome. Fills are reserved for the single committing action in a view; everything else is a tint or text.", "section": "colors" },
+      { "name": "The Share Pill Rule", "body": "Share Sky belongs to Share. Do not reuse it for other buttons, badges or banners.", "section": "colors" },
+      { "name": "The Two Worlds Rule", "body": "Arial never appears in chrome, and Roboto never appears on the page.", "section": "typography" },
+      { "name": "The Regular Heading Rule", "body": "Headings in both worlds are weight 400 except 16px section titles (500). Hierarchy comes from size, not bold.", "section": "typography" },
+      { "name": "The Float-Only Shadow Rule", "body": "Only the page and floating layers (menus, dialogs, focused search) cast shadows. Bars, rows, buttons and cards stay flat.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep a single Commit Blue filled button per view; secondary actions are text buttons.",
+      "Do render document content in Arial at 11pt (14.667px) with regular-weight headings.",
+      "Do make every control, chip and hover row fully round; keep the page and fields near-square.",
+      "Do show save state and the user's role as visible text at all times.",
+      "Do use Lucide stroke icons (16-20px chrome, 18px toolbar at 2.25 stroke).",
+      "Do generate avatar colors from the fixed seven-color set keyed by email."
+    ],
+    "donts": [
+      "Don't use Share Sky anywhere but the Share control.",
+      "Don't add shadows to bars, rows, cards or buttons; only floating layers lift.",
+      "Don't introduce new saturated hues in chrome; semantic colors are for state only.",
+      "Don't use Google branding or the Google logo; the Ajaia folded-page mark is the identity.",
+      "Don't bold headings for hierarchy; scale size instead."
+    ]
+  }
+}
