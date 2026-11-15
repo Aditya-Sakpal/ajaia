@@ -50,4 +50,37 @@ test.describe('live collaboration', () => {
     await alice.context.close();
     await bob.context.close();
   });
+
+  test('neighbouring paragraphs deleted at the same moment (no waiting between) both disappear everywhere', async ({ browser }) => {
+    test.slow();
+    const alice = await asUser(browser, 'alice');
+    const res = await alice.request.post('/api/documents', {
+      data: {
+        title: `Adjacent ${stamp()}`,
+        content: { type: 'doc', content: [para('Alpha line'), para('Bravo line'), para('Charlie line'), para('Delta line')] },
+      },
+    });
+    const doc = (await res.json()) as { id: string };
+    await share(alice.request, doc.id, 'bob', 'editor');
+    const bob = await asUser(browser, 'bob');
+    await alice.page.goto(`/d/${doc.id}`);
+    await bob.page.goto(`/d/${doc.id}`);
+    await expect(bob.page.locator('.ProseMirror')).toContainText('Delta line');
+    await expect(alice.page.locator('.ProseMirror')).toContainText('Delta line');
+
+    await deleteParagraph(bob.page, 'Bravo line');
+    await deleteParagraph(alice.page, 'Charlie line');
+
+    for (const page of [alice.page, bob.page]) {
+      const body = page.locator('.ProseMirror');
+      await expect(body).not.toContainText('Bravo', { timeout: 20_000 });
+      await expect(body).not.toContainText('Charlie', { timeout: 20_000 });
+      await expect(body).toContainText('Alpha line');
+      await expect(body).toContainText('Delta line');
+      await expect(page.getByText(/changed somewhere else/)).toHaveCount(0);
+    }
+    await deleteDoc(alice.request, doc.id);
+    await alice.context.close();
+    await bob.context.close();
+  });
 });

@@ -45,3 +45,22 @@ describe('mergeDocs key order', () => {
     expect(mergeDocs(base, local, remote)).toEqual(doc('B', 'C', 'D'));
   });
 });
+
+describe('mergeDocs adjacent edits', () => {
+  it('two people deleting neighbouring paragraphs both win', () => {
+    const base = doc('A', 'B', 'C', 'D');
+    expect(mergeDocs(base, doc('A', 'B', 'D'), doc('A', 'C', 'D'))).toEqual(doc('A', 'D'));
+  });
+  it('an edit next to a deletion combines', () => {
+    const base = doc('A', 'B', 'C');
+    expect(mergeDocs(base, doc('A', 'B2', 'C'), doc('A', 'B'))).toEqual(doc('A', 'B2'));
+  });
+  it('both adding different paragraphs at the end keeps both', () => {
+    const base = doc('A');
+    expect(mergeDocs(base, doc('A', 'L'), doc('A', 'R'))).toEqual(doc('A', 'R', 'L'));
+  });
+  it('one side deleting a paragraph the other side edited keeps the edit', () => {
+    const base = doc('A', 'B', 'C');
+    expect(mergeDocs(base, doc('A', 'B edited', 'C'), doc('A', 'C'))).toEqual(doc('A', 'B edited', 'C'));
+  });
+});
