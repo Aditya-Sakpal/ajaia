@@ -14,6 +14,7 @@ import { MenuBar } from '../components/MenuBar';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { editorExtensions } from '../editor/extensions';
 import { AiAutocomplete } from '../editor/autocomplete';
+import { Pagination } from '../editor/pagination';
 import { AiBar } from '../components/AiBar';
 import { generateJSON } from '@tiptap/core';
 import { IMPORT_ACCEPT, fileToHtml, titleFromFilename, validateImportFile } from '../import/fileImport';
@@ -281,6 +282,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
   const editor = useEditor({
     extensions: [
       ...editorExtensions,
+      Pagination,
       AiAutocomplete.configure({
         debounceMs: 900,
         isEnabled: () => canEdit && autocompleteRef.current,
@@ -620,7 +622,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
         <Outline headings={headings} editor={editor} />
         <div className="flex min-w-0 flex-1 flex-col items-center px-2 py-4 sm:px-6 lg:pr-[248px]">
           <article
-            className="doc-page h-max min-h-[1056px] w-full max-w-[816px] border border-line bg-white px-6 py-10 shadow-[0_1px_3px_rgb(60_64_67/0.15)] sm:px-[72px] sm:py-[72px] lg:px-[96px] lg:py-[96px]"
+            className="doc-page h-max min-h-[1056px] w-full max-w-[816px] shrink-0 lg:min-h-0 border border-line bg-white px-6 py-10 shadow-[0_1px_3px_rgb(60_64_67/0.15)] sm:px-[72px] sm:py-[72px] lg:px-[96px] lg:py-[96px]"
             onClick={(e) => {
               if (e.target === e.currentTarget) editor?.commands.focus('end');
             }}

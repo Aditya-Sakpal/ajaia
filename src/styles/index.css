@@ -158,3 +158,26 @@ dialog::backdrop {
   color: #80868b;
   vertical-align: 1px;
 }
+
+/* Visual pagination (lg and up): end of page, grey gap, start of next page. */
+.doc-page .page-break {
+  margin: 0 -97px;
+  pointer-events: none;
+  user-select: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent var(--page-bottom),
+    #c7c7c7 var(--page-bottom),
+    #c7c7c7 calc(var(--page-bottom) + 1px),
+    var(--color-chrome) calc(var(--page-bottom) + 1px),
+    var(--color-chrome) calc(var(--page-bottom) + 19px),
+    #c7c7c7 calc(var(--page-bottom) + 19px),
+    #c7c7c7 calc(var(--page-bottom) + 20px),
+    transparent calc(var(--page-bottom) + 20px)
+  );
+}
+.doc-page .page-tail {
+  pointer-events: none;
+  user-select: none;
+}

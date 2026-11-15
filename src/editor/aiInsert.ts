@@ -44,6 +44,9 @@ export function applyAiResult(
   }
   const size = editor.state.doc.content.size;
   const at = changed ? editor.state.selection.to : Math.min(r.range.to, size);
-  editor.chain().focus().insertContentAt(at, r.html).run();
+  // New blocks go after the top-level block holding the cursor, never inside a list item.
+  const $at = editor.state.doc.resolve(at);
+  const pos = $at.depth >= 1 ? $at.after(1) : at;
+  editor.chain().focus().insertContentAt(pos, r.html).run();
   return 'applied';
 }
