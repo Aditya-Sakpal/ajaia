@@ -36,6 +36,12 @@ Sign-in is a demo account picker with no passwords. Three users are seeded:
   | edit / rename | ✅ | ✅ | 403 | 404 |
   | delete, manage sharing | ✅ | 403 | 403 | 404 |
 
+- **AI writing assistant (OpenAI `gpt-5.4-mini`, called from the Worker):** a *Write with AI* bar at the bottom of the page, inspired by the Docs one:
+  - one-click **Continue writing**, **Meeting notes**, **Email draft** and **Summarize**;
+  - **More** to improve, shorten, lengthen or fix the grammar of selected text;
+  - a free-form prompt (with text selected, the prompt rewrites the selection).
+
+  Results go in as formatted text, and one Undo removes them. **Autocomplete** shows a grey suggestion when you pause at the end of a line: **Tab** accepts it, **Esc** dismisses it, and you can turn it off under *More*. Only owners and editors can use AI on a document. Without `OPENAI_API_KEY` the bar reports that AI isn't configured.
 - **Import:** `.txt` and `.md` files up to **1 MB** and `.docx` files up to **2 MB** become new documents (`.docx` is compressed, so its converted content still fits the 1 MB document limit). In `.docx` files, headings, bold, italic and lists are kept; **images and tables are dropped**. Scripts and event handlers are stripped from the content.
 - **Losing access while a document is open:** if the owner removes you or deletes the document, your next save shows "You no longer have access to this document" and the editor locks. If you were signed out, or your role changed, you get a specific message instead.
 - **Sessions across tabs:** all tabs share one session cookie. A tab that regains focus checks who is signed in, so switching account in one tab is picked up by the others. Switching account from the editor saves pending edits first.

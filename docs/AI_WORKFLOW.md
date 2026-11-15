@@ -37,6 +37,9 @@ Every entry is in [specs/ai-decision-log.md](../specs/ai-decision-log.md). The m
 8. **Design review.** A separate design reviewer compared screenshots against my Google Docs reference. It flagged a share list that wrongly said "Not shared yet" while it was still loading, the missing menu bar, a chrome font that differed by operating system, avatars that implied people were live in the document, and the viewer role being stated six times. All were fixed and re-scored.
 9. **Design.** The design skill wanted to invent a novel visual direction. I pinned a near-faithful Google Docs look with no Google branding, because reviewers should recognise every control instantly.
 
+10. **Working in parallel at the end.** With little time left, a forked agent fixed four deferred bugs while the main session built the AI writing assistant. I resolved one shared-file merge by hand and re-ran the full suites afterwards.
+11. **AI provider.** The Claude API skill defaults to Claude models. I chose OpenAI (`gpt-5.4-mini`) because that is the key I had. The key lives only in a Wrangler secret, and the AI code is a small `fetch` client behind an interface, so the provider can be swapped.
+
 ## How I verified correctness, UX and reliability
 
 - **Tests that were seen to fail first:** 88 Vitest tests covering the full owner/editor/viewer/stranger matrix through the real HTTP routes, version conflicts, validation limits, save-queue concurrency, and import edge cases.

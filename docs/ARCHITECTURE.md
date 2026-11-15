@@ -37,6 +37,16 @@ The whole app is one Cloudflare Worker. Requests to `/api/*` run the Hono API (`
 | `Repo` interface with Postgres and in-memory implementations | API tests run the real Hono app quickly without a database | Two implementations to keep in step (covered by tests) |
 | Demo account picker instead of real auth | The brief allows simulated users; HMAC-signed cookies keep the session logic real | No passwords |
 
+## AI writing assistant
+
+- **Server:** `POST /api/documents/:id/ai/generate` and `/ai/complete` call OpenAI (`gpt-5.4-mini`, low reasoning effort) with `fetch` from the Worker.
+- **Key:** it is a Wrangler secret and never reaches the browser.
+- **Access:** both routes require edit access, so viewers and strangers are refused before any model call.
+- **Prompts:** built by pure, unit-tested functions (`worker/lib/aiPrompts.ts`). The document is sent as context, trimmed to its last 12k characters; autocomplete sends the last 1.5k characters before the cursor.
+- **Output:** the model replies in Markdown, which is converted and sanitized client-side and inserted through the editor schema. One undo step removes it.
+- **Autocomplete:** a small TipTap extension (`src/editor/autocomplete.ts`) with a 900 ms pause trigger. A suggestion is only shown if the document hasn't changed since the request; it renders as a non-editable decoration, so it never reaches the saved document.
+- **Tradeoff:** responses aren't streamed. Generations take 2–5 s and show a "Writing…" state.
+
 ## Validation and errors
 
 - Every request body is checked with a Zod schema. Titles are trimmed and must be 1–200 characters. Content must be a `doc` node whose ProseMirror structure is valid (no empty text nodes, depth-limited). Content over 1 MB returns 413.

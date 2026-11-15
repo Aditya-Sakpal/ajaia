@@ -39,6 +39,8 @@ Switch users from the avatar menu (top right) → **Switch account**.
 
 **Working end to end:** demo sign-in and account switching; create, rename, edit, delete; rich text (bold, italic, underline, H1–H3, bulleted and numbered lists, undo/redo); autosave with visible status, persisted across refresh; version-conflict detection; `.txt`/`.md` (≤ 1 MB) and `.docx` (≤ 2 MB) import into new documents; after a conflict the stale tab can save its edits as a copy; sharing by email as editor or viewer, role changes and removal, all server-enforced; owned vs shared lists; view-only mode; lost-access handling; deployment on Cloudflare with Postgres.
 
+**AI writing assistant:** a *Write with AI* bar (Continue writing, Meeting notes, Email draft, Summarize, rewrite selection, free-form prompt) and Tab-to-accept autocomplete, powered by OpenAI from the Worker. Only owners and editors can use it.
+
 **Deliberately not built:** real-time co-editing, comments, version history, images/tables, export, real authentication.
 
 **Incomplete / rough edges:**

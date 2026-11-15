@@ -1,2 +1,5 @@
 # Local Worker secrets (copy to .dev.vars)
 SESSION_SECRET="any-long-random-string-for-local-dev"
+# Optional: enables the AI writing bar and autocomplete
+OPENAI_API_KEY="sk-..."
+# OPENAI_MODEL="gpt-5.4-mini"

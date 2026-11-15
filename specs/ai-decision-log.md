@@ -25,3 +25,7 @@ Format: **Date — Area** · AI proposed → What we did → Why → How verifie
 **2026-11-15 — Over-generated middleware/queries (self-review).** First draft ran `requireUser` twice on share routes and loaded the document twice per PATCH → session check mounted once at `/documents/*`; PATCH authorizes once and checks the role from the body → Verify: full API suite unchanged and green.
 
 **2026-11-15 — Design direction.** The design skill wanted to roll a novel visual direction; I pinned "near-faithful Google Docs look, no Google branding" because reviewers should recognise every control instantly → Verify: screenshot round at 1440 px and 390 px.
+
+**2026-11-15 — AI provider.** Claude Code's API skill defaults to Claude models → I supplied an OpenAI key, so the assistant calls OpenAI `gpt-5.4-mini` from the Worker with plain `fetch` (no SDK, keeps the Worker small) → it's the account I have, and the key is held only as a Wrangler secret → Verify: route tests with a fake client (access matrix, 503 without a key, 400 on bad actions), mocked Playwright tests for the bar and autocomplete, and a real call on production (autocomplete ~4 s round trip).
+
+**2026-11-15 — Parallel fixes.** A forked agent fixed the four deferred issues (conflict copy, lost-reply detection, import limit, DB timeouts) while the AI feature was built in the main thread; both touched `worker/lib/errors.ts`, and the merge was resolved by hand (502 + 503).
