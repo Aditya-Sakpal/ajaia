@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { asUser, createDoc, deleteDoc, makeDocx, share, signInUI, waitSaved } from './helpers';
 
+const stamp = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 const SEED_DOC_IDS = new Set(['00000000-0000-4000-8000-0000000d0c01', '00000000-0000-4000-8000-0000000d0c02']);
 const runStart = new Date(Date.now() - 5_000).toISOString();
 
@@ -12,7 +13,6 @@ test.afterAll(async ({ browser }) => {
   await alice.context.close();
 });
 
-const stamp = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 test.describe('sign-in', () => {
   test('unauthenticated deep link goes to login and returns to the document', async ({ browser }) => {
@@ -41,6 +41,77 @@ test.describe('sign-in', () => {
   });
 });
 
+test.describe('session edge cases', () => {
+  test('switching account right after typing still saves the edit', async ({ browser }) => {
+    const alice = await asUser(browser, 'alice');
+    const doc = await createDoc(alice.request, `Switch ${stamp()}`, 'start');
+    const { page } = alice;
+    await page.goto(`/d/${doc.id}`);
+    await page.locator('.ProseMirror').click();
+    await page.keyboard.type(' typed just before switching');
+    await page.getByRole('button', { name: /Account: Alice Chen/ }).click();
+    await page.getByRole('menuitem', { name: 'Switch account' }).click();
+    await expect(page.getByRole('heading', { name: 'Choose an account' })).toBeVisible();
+    const check = await asUser(browser, 'alice');
+    const saved = await (await check.request.get(`/api/documents/${doc.id}`)).json();
+    expect(JSON.stringify(saved.content)).toContain('typed just before switching');
+    await deleteDoc(check.request, doc.id);
+    await check.context.close();
+    await alice.context.close();
+  });
+
+  test('being signed out elsewhere sends you to sign-in without a redirect loop', async ({ browser }) => {
+    const alice = await asUser(browser, 'alice');
+    const { page } = alice;
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: /My documents/ })).toBeVisible();
+    let docRequests = 0;
+    page.on('request', (r) => r.url().endsWith('/api/documents') && docRequests++);
+    await alice.request.post('/api/auth/logout'); // same cookie jar: like signing out in another tab
+    await page.getByRole('button', { name: 'Blank document' }).click();
+    await expect(page.getByRole('heading', { name: 'Choose an account' })).toBeVisible();
+    await page.waitForTimeout(1500);
+    expect(docRequests).toBeLessThan(3);
+    await expect(page.getByRole('heading', { name: 'Choose an account' })).toBeVisible();
+    await alice.context.close();
+  });
+
+  test('a tab follows an account switch made in another tab', async ({ browser }) => {
+    const ctx = await asUser(browser, 'alice');
+    const tabA = ctx.page;
+    await tabA.goto('/');
+    await expect(tabA.getByRole('button', { name: /Account: Alice Chen/ })).toBeVisible();
+    await ctx.request.post('/api/auth/login', { data: { email: 'bob@ajaia.test' } }); // other tab switched to Bob
+    await tabA.evaluate(() => (globalThis as unknown as EventTarget).dispatchEvent(new Event('focus')));
+    await expect(tabA.getByRole('button', { name: /Account: Bob Patel/ })).toBeVisible();
+    await ctx.context.close();
+  });
+
+  test('leaving with unsaved changes after a failed save asks first', async ({ browser }) => {
+    const alice = await asUser(browser, 'alice');
+    const doc = await createDoc(alice.request, `Unsaved ${stamp()}`, 'start');
+    const { page } = alice;
+    await page.goto(`/d/${doc.id}`);
+    await page.route('**/api/documents/*', (route) =>
+      route.request().method() === 'PATCH' ? route.abort('internetdisconnected') : route.continue(),
+    );
+    await page.locator('.ProseMirror').click();
+    await page.keyboard.type(' will fail');
+    await expect(page.getByText(/Your latest changes aren’t saved yet/)).toBeVisible();
+    let asked = '';
+    page.once('dialog', (d) => {
+      asked = d.message();
+      void d.dismiss();
+    });
+    await page.getByRole('link', { name: 'Back to documents' }).first().click();
+    await expect.poll(() => asked).toContain('not saved');
+    await expect(page).toHaveURL(new RegExp(`/d/${doc.id}$`));
+    await page.unroute('**/api/documents/*');
+    await deleteDoc(alice.request, doc.id);
+    await alice.context.close();
+  });
+});
+
 test.describe('editing', () => {
   test('formatting survives a reload', async ({ browser }) => {
     const alice = await asUser(browser, 'alice');
@@ -54,11 +125,11 @@ test.describe('editing', () => {
     await page.getByRole('combobox', { name: 'Text style' }).selectOption('h2');
     await page.keyboard.type('Section heading');
     await page.keyboard.press('Enter');
-    await page.getByRole('button', { name: 'Bold' }).click();
+    await page.getByRole('button', { name: 'Bold', exact: true }).click();
     await page.keyboard.type('bold words');
-    await page.getByRole('button', { name: 'Bold' }).click();
+    await page.getByRole('button', { name: 'Bold', exact: true }).click();
     await page.keyboard.press('Enter');
-    await page.getByRole('button', { name: 'Numbered list' }).click();
+    await page.getByRole('button', { name: 'Numbered list', exact: true }).click();
     await page.keyboard.type('first item');
     await page.keyboard.press('Enter');
     await page.keyboard.type('second item');
@@ -267,9 +338,9 @@ test.describe('sharing', () => {
     await expect(row).toContainText('Viewer');
     await expect(row).toContainText('Alice Chen');
     await row.getByRole('link').click();
-    await expect(carol.page.getByText(/You can view this document but not edit it/)).toBeVisible();
+    await expect(carol.page.getByText('Viewing', { exact: true })).toBeVisible();
     await expect(carol.page.locator('.ProseMirror')).toHaveAttribute('contenteditable', 'false');
-    await expect(carol.page.getByRole('button', { name: 'Bold' })).toHaveCount(0);
+    await expect(carol.page.getByRole('button', { name: 'Bold', exact: true })).toHaveCount(0);
     await expect(carol.page.locator('#doc-title')).toHaveAttribute('readonly', '');
     // and the server refuses a direct write
     const res = await carol.request.patch(`/api/documents/${doc.id}`, { data: { version: 1, title: 'hacked' } });

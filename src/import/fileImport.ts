@@ -2,7 +2,7 @@ import { TITLE_MAX } from '../../shared/types';
 
 export const IMPORT_ACCEPT = '.txt,.md,.docx';
 export const IMPORT_MAX_BYTES = 2 * 1024 * 1024;
-export const IMPORT_HELP = '.txt, .md, .docx · up to 2 MB';
+export const IMPORT_HELP = '.txt, .md, .docx · up to 2 MB';
 
 type Kind = 'txt' | 'md' | 'docx';
 

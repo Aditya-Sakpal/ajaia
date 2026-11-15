@@ -20,7 +20,7 @@ const mod = isMac ? '⌘' : 'Ctrl+';
 type Block = 'p' | 'h1' | 'h2' | 'h3';
 const BLOCK_LABEL: Record<Block, string> = { p: 'Normal text', h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3' };
 
-export function Toolbar({ editor, editable }: { editor: Editor; editable: boolean }) {
+export function Toolbar({ editor, editable, viewHint }: { editor: Editor; editable: boolean; viewHint?: string }) {
   const s = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -52,7 +52,7 @@ export function Toolbar({ editor, editable }: { editor: Editor; editable: boolea
     <div
       role="toolbar"
       aria-label="Formatting"
-      className="flex h-10 items-center gap-0.5 overflow-x-auto rounded-full bg-pill px-2 [scrollbar-width:none]"
+      className="flex h-10 items-center gap-0.5 overflow-x-auto rounded-full bg-pill px-2 [scrollbar-width:none] max-sm:[mask-image:linear-gradient(to_right,black_85%,transparent)]"
     >
       {editable ? (
         <>
@@ -119,10 +119,11 @@ export function Toolbar({ editor, editable }: { editor: Editor; editable: boolea
             <RemoveFormatting />
           </ToolButton>
         </>
-      ) : (
-        <span className="px-2 text-[14px] text-ink-2">View only</span>
-      )}
-      <span className="ml-auto flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-[14px] text-ink-2">
+      ) : null}
+      <span
+        title={editable ? undefined : viewHint}
+        className={`ml-auto shrink-0 items-center gap-2 rounded-full px-3 py-1 text-[14px] text-ink-2 ${editable ? 'hidden sm:flex' : 'flex'}`}
+      >
         {editable ? <Pencil className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
         {editable ? 'Editing' : 'Viewing'}
       </span>

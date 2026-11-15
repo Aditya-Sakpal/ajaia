@@ -39,7 +39,7 @@ function Label({ state, onRetry }: { state: SaveState; onRetry(): void }) {
       className="flex items-center gap-1.5 rounded px-1 font-medium text-danger hover:bg-danger-bg"
       aria-live="assertive"
     >
-      <CloudOff className="size-4" aria-hidden /> Couldn’t save — Retry
+      <CloudOff className="size-4" aria-hidden /> Couldn&apos;t save — Retry
     </button>
   );
 }

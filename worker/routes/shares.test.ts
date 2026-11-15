@@ -61,6 +61,14 @@ describe('shares API', () => {
     expect((await share(dave, { email: 'carol@ajaia.test', role: 'viewer' })).status).toBe(404);
   });
 
+  it('a viewer cannot add, change or remove shares', async () => {
+    await share(alice, { email: 'carol@ajaia.test', role: 'viewer' });
+    expect((await share(carol, { email: 'dave@ajaia.test', role: 'editor' })).status).toBe(403);
+    expect((await share(carol, { email: 'carol@ajaia.test', role: 'editor' })).status).toBe(403);
+    expect((await t.request(`/api/documents/${docId}/shares/${t.bob.id}`, { method: 'DELETE', cookie: carol })).status).toBe(403);
+    expect((await t.repo.getShare(docId, t.bob.id))?.role).toBe('editor');
+  });
+
   it('collaborators can list shares; strangers cannot', async () => {
     await share(alice, { email: 'carol@ajaia.test', role: 'viewer' });
     expect((await list(carol)).status).toBe(200);

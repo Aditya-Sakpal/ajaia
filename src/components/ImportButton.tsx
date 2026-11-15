@@ -39,14 +39,14 @@ export function ImportTile({ onError }: { onError(message: string | null): void 
         onClick={() => input.current?.click()}
         disabled={busy}
         aria-describedby="import-help"
-        className="flex h-[188px] w-[144px] flex-col items-center justify-center gap-3 rounded border border-dashed border-line bg-white px-3 text-center transition-colors hover:border-action disabled:opacity-60"
+        className="relative flex h-[188px] w-[144px] items-center justify-center rounded border border-dashed border-line bg-white px-3 text-center transition-colors hover:border-action disabled:opacity-60"
       >
         {busy ? (
           <LoaderCircle className="size-10 animate-spin text-action" aria-hidden />
         ) : (
-          <FileUp className="size-12 stroke-[1.25] text-action" aria-hidden />
+          <FileUp className="size-14 stroke-[1.25] text-action" aria-hidden />
         )}
-        <span id="import-help" className="text-[12px] leading-4 text-ink-3">
+        <span id="import-help" className="absolute inset-x-2 bottom-3 text-[12px] leading-4 text-ink-3">
           {IMPORT_HELP}
         </span>
       </button>

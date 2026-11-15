@@ -76,7 +76,7 @@ export function LoginPage() {
                       <span className="block truncate text-[14px] font-medium text-ink">{u.name}</span>
                       <span className="block truncate text-[13px] text-ink-2">{u.email}</span>
                       {ROLE_HINTS[u.email] && (
-                        <span className="mt-0.5 block truncate text-[12px] text-ink-3">{ROLE_HINTS[u.email]}</span>
+                        <span className="mt-0.5 block text-[12px] leading-4 text-ink-3">{ROLE_HINTS[u.email]}</span>
                       )}
                     </span>
                     {pending === u.email ? (

@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Google Sans Text', 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+  --font-sans: Roboto, 'Segoe UI', system-ui, -apple-system, sans-serif; /* self-hosted via @fontsource/roboto */
   --font-doc: Arial, 'Liberation Sans', Helvetica, sans-serif;
 
   --color-chrome: #f9fbfd;

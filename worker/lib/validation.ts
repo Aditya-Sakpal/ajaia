@@ -53,6 +53,13 @@ export const shareSchema = z.object({
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (s: string) => UUID_RE.test(s);
 
+/** Postgres jsonb cannot store U+0000; reject it as a 400 instead of failing with a 500. */
+function containsNul(value: unknown, depth = 0): boolean {
+  if (typeof value === 'string') return value.includes(String.fromCharCode(0));
+  if (depth > 100 || typeof value !== 'object' || value === null) return false;
+  return Object.values(value).some((v) => containsNul(v, depth + 1));
+}
+
 /** Parses and validates a JSON body. Enforces the content size limit before deep validation. */
 export async function parseBody<T extends z.ZodType>(c: Context, schema: T): Promise<z.infer<T>> {
   const raw = await c.req.text();
@@ -64,6 +71,9 @@ export async function parseBody<T extends z.ZodType>(c: Context, schema: T): Pro
     json = raw ? JSON.parse(raw) : {};
   } catch {
     throw new ApiError(400, 'invalid_request', 'Request body must be valid JSON.');
+  }
+  if (containsNul(json)) {
+    throw new ApiError(400, 'invalid_request', 'Text contains characters that cannot be saved.');
   }
   const maybeContent = (json as { content?: unknown } | null)?.content;
   if (maybeContent !== undefined && JSON.stringify(maybeContent).length > CONTENT_MAX_BYTES) {

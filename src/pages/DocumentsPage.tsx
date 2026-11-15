@@ -27,10 +27,9 @@ export function DocumentsPage() {
       .get<DocumentLists>('/documents')
       .then(setLists)
       .catch((err: ApiError) => {
-        if (err.status === 401) navigate('/login');
-        else setError(err.message);
+        if (err.status !== 401) setError(err.message); // 401 is handled by the auth layer
       });
-  }, [navigate]);
+  }, []);
 
   useEffect(load, [load]);
 
@@ -219,10 +218,17 @@ function DocRow({ doc, mine, onDelete }: { doc: DocumentSummary; mine?: boolean;
     <li className="group relative grid grid-cols-[1fr_auto_40px] items-center gap-2 sm:gap-4 rounded-full px-3 hover:bg-hover sm:grid-cols-[1fr_160px_150px_40px]">
       <Link to={`/d/${doc.id}`} className="flex min-w-0 items-center gap-4 py-3 after:absolute after:inset-0 after:content-['']">
         <DocIcon size={22} />
-        <span className="truncate text-[14px] font-medium text-ink">{doc.title}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-[14px] font-medium text-ink">{doc.title}</span>
+          {!mine && (
+            <span className="block truncate text-[12px] text-ink-3 sm:hidden">
+              {doc.access === 'editor' ? 'Editor' : 'Viewer'} · shared by {doc.owner.name}
+            </span>
+          )}
+        </span>
         {!mine && (
           <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium ${
+            className={`hidden shrink-0 sm:inline rounded-full px-2 py-0.5 text-[12px] font-medium ${
               doc.access === 'editor' ? 'bg-[#d3e3fd] text-[#041e49]' : 'bg-[#e3e3e3] text-ink-2'
             }`}
           >

@@ -11,6 +11,8 @@ import { LogoMark } from '../components/Logo';
 import { SaveStatus } from '../components/SaveStatus';
 import { ShareDialog } from '../components/ShareDialog';
 import { Toolbar } from '../components/Toolbar';
+import { MenuBar } from '../components/MenuBar';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { editorExtensions } from '../editor/extensions';
 import { createSaveQueue, type SaveState } from '../editor/saveQueue';
 import { useAuth } from '../lib/auth';
@@ -59,7 +61,7 @@ function OpenError({ notFound, message }: { notFound: boolean; message: string }
   );
 }
 
-type Banner = 'conflict' | 'lost' | null;
+type Banner = 'conflict' | 'lost' | 'forbidden' | 'signedOut' | null;
 interface Snapshot {
   title: string;
   content: DocJSON;
@@ -71,7 +73,7 @@ interface Heading {
 }
 
 function DocumentEditor({ initial }: { initial: Document }) {
-  const { user } = useAuth();
+  const { user, registerBeforeSignOut } = useAuth();
   const navigate = useNavigate();
   const me = user!;
   const canEdit = initial.access !== 'viewer';
@@ -82,7 +84,10 @@ function DocumentEditor({ initial }: { initial: Document }) {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [banner, setBanner] = useState<Banner>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [shares, setShares] = useState<Share[]>([]);
+  const [shares, setShares] = useState<Share[] | null>(null);
+  const [sharesError, setSharesError] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [headings, setHeadings] = useState<Heading[]>([]);
 
@@ -90,6 +95,8 @@ function DocumentEditor({ initial }: { initial: Document }) {
   const titleRef = useRef(initial.title);
   const savedTitleRef = useRef(initial.title);
   const editorRef = useRef<Editor | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const leavingRef = useRef(false);
 
   const handleLost = useCallback(() => setBanner('lost'), []);
 
@@ -106,13 +113,13 @@ function DocumentEditor({ initial }: { initial: Document }) {
           savedTitleRef.current = updated.title;
           setSavedTitle(updated.title);
         } catch (err) {
-          setSaveError(err instanceof ApiError ? err.message : 'Couldn’t save your changes.');
+          setSaveError(err instanceof ApiError ? err.message : 'Your changes could not be saved.');
           if (err instanceof ApiError) {
             if (err.status === 409) {
               setBanner('conflict');
               q.pause();
             } else if (err.status === 401 || err.status === 403 || err.status === 404) {
-              setBanner('lost');
+              setBanner(err.status === 401 ? 'signedOut' : err.status === 403 ? 'forbidden' : 'lost');
               q.pause();
             }
           }
@@ -127,7 +134,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
   // Flush on unmount (route change) and warn before closing the tab with unsaved changes.
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (queue.hasUnsavedChanges()) {
+      if (!leavingRef.current && queue.hasUnsavedChanges()) {
         e.preventDefault();
         void queue.flush();
       }
@@ -139,6 +146,9 @@ function DocumentEditor({ initial }: { initial: Document }) {
       void queue.flush();
     };
   }, [queue]);
+
+  // Switching account from this page: save first, then let the session be cleared.
+  useEffect(() => registerBeforeSignOut(() => queue.flush()), [registerBeforeSignOut, queue]);
 
   // Reads refs only, so editor callbacks captured at creation never see stale state.
   const snapshot = useCallback(
@@ -173,14 +183,48 @@ function DocumentEditor({ initial }: { initial: Document }) {
     },
   });
 
-  useEffect(() => {
+  const loadShares = useCallback(() => {
+    setSharesError(false);
     api
       .get<Share[]>(`/documents/${initial.id}/shares`)
       .then(setShares)
       .catch((err: ApiError) => {
         if (err.status === 404 || err.status === 403) handleLost();
+        else setSharesError(true);
       });
   }, [initial.id, handleLost]);
+
+  useEffect(loadShares, [loadShares]);
+
+  function openShare() {
+    setShareOpen(true);
+    loadShares(); // always show the current list, not the one from page load
+  }
+
+  async function createNew() {
+    await queue.flush();
+    try {
+      const doc = await api.post<Document>('/documents', {});
+      navigate(`/d/${doc.id}`);
+    } catch (err) {
+      setSaveError(err instanceof ApiError ? err.message : 'Could not create a document.');
+    }
+  }
+
+  async function deleteThis() {
+    setDeleting(true);
+    try {
+      leavingRef.current = true;
+      queue.pause();
+      await api.del(`/documents/${initial.id}`);
+      navigate('/');
+    } catch (err) {
+      leavingRef.current = false;
+      setDeleting(false);
+      setConfirmDelete(false);
+      setSaveError(err instanceof ApiError ? err.message : 'Could not delete the document.');
+    }
+  }
 
   function onTitleChange(value: string) {
     setTitle(value);
@@ -206,13 +250,17 @@ function DocumentEditor({ initial }: { initial: Document }) {
     if (e.key === 'Escape') {
       setTitle(savedTitle);
       titleRef.current = savedTitle;
+      if (canEdit) queue.schedule(snapshot()); // supersede a rename that was already queued
       (e.target as HTMLInputElement).blur();
     }
   }
 
-  async function goHome(e: MouseEvent) {
-    e.preventDefault();
+  async function goHome(e?: MouseEvent) {
+    if (e && (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1)) return; // let "open in new tab" work
+    e?.preventDefault();
     await queue.flush();
+    if (queue.hasUnsavedChanges() && !window.confirm('Your latest changes are not saved. Leave anyway?')) return;
+    leavingRef.current = true;
     navigate('/');
   }
 
@@ -238,6 +286,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
             </label>
             <input
               id="doc-title"
+              ref={titleInputRef}
               value={title}
               readOnly={!editable}
               maxLength={TITLE_MAX}
@@ -250,6 +299,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
             />
             {roleLabel && (
               <span
+                title={`Owner: ${initial.owner.name}`}
                 className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium sm:inline ${
                   roleLabel === 'Editor' ? 'bg-[#d3e3fd] text-[#041e49]' : 'bg-[#e3e3e3] text-ink-2'
                 }`}
@@ -257,34 +307,37 @@ function DocumentEditor({ initial }: { initial: Document }) {
                 Shared with you · {roleLabel}
               </span>
             )}
-          </div>
-          <div className="flex h-6 items-center gap-3 px-1.5 text-[13px]">
-            <span className="hidden text-ink-2 sm:inline">{isOwner ? 'Owned by you' : `Owner: ${initial.owner.name}`}</span>
-            {editable ? (
-              <SaveStatus state={saveState} onRetry={() => queue.retry()} />
-            ) : (
-              <span className="flex items-center gap-1.5 text-ink-3">
-                <Lock className="size-3.5" aria-hidden /> Read-only
+            {editable && (
+              <span className="shrink-0 text-[13px]">
+                <SaveStatus state={saveState} onRetry={() => queue.retry()} />
               </span>
             )}
           </div>
+          <MenuBar
+            editor={editor}
+            editable={editable}
+            isOwner={isOwner}
+            onNew={createNew}
+            onRename={() => titleInputRef.current?.select()}
+            onShare={openShare}
+            onDelete={() => setConfirmDelete(true)}
+            onHome={() => void goHome()}
+          />
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <div className="hidden -space-x-2 md:flex" aria-label="People with access">
-            {[initial.owner, ...shares.map((s) => s.user)]
-              .filter((u) => u.id !== me.id)
+          <div className="hidden -space-x-1.5 md:flex" aria-label="People with access">
+            {[{ user: initial.owner, label: 'Owner' }, ...(shares ?? []).map((s) => ({ user: s.user, label: s.role === 'editor' ? 'Editor' : 'Viewer' }))]
+              .filter((p) => p.user.id !== me.id)
               .slice(0, 4)
-              .map((u) => (
-                <span key={u.id} className="rounded-full ring-2 ring-chrome">
-                  <Avatar user={u} size={30} />
-                </span>
+              .map((p) => (
+                <Avatar key={p.user.id} user={p.user} size={28} title={`${p.user.name} · ${p.label === 'Owner' ? 'owner' : `has ${p.label} access`}`} />
               ))}
           </div>
           <button
             type="button"
-            onClick={() => setShareOpen(true)}
-            disabled={banner === 'lost'}
+            onClick={openShare}
+            disabled={banner !== null && banner !== 'conflict'}
             className="flex h-10 items-center gap-2 rounded-full bg-share px-4 text-[14px] font-medium text-share-ink transition-colors hover:bg-share-hover disabled:opacity-50 sm:px-5"
           >
             {isOwner ? <Lock className="size-4" aria-hidden /> : <Users className="size-4" aria-hidden />}
@@ -295,10 +348,24 @@ function DocumentEditor({ initial }: { initial: Document }) {
       </header>
 
       {/* Toolbar */}
-      <div className="shrink-0 px-2 pb-2 sm:px-3">{editor && <Toolbar editor={editor} editable={editable} />}</div>
+      <div className="shrink-0 px-2 pb-2 sm:px-3">
+        {editor && <Toolbar editor={editor} editable={editable} viewHint={canEdit ? undefined : `Ask ${initial.owner.name} for editor access`} />}
+      </div>
 
       {banner === 'conflict' && (
-        <Notice tone="warn" action={<NoticeButton onClick={() => window.location.reload()} icon={<RotateCw className="size-4" />} label="Reload" />}>
+        <Notice
+          tone="warn"
+          action={
+            <NoticeButton
+              onClick={() => {
+                leavingRef.current = true;
+                window.location.reload();
+              }}
+              icon={<RotateCw className="size-4" />}
+              label="Reload"
+            />
+          }
+        >
           This document was changed somewhere else (another tab or person). Reload to see the latest version — edits made
           since your last save won’t be kept.
         </Notice>
@@ -308,14 +375,19 @@ function DocumentEditor({ initial }: { initial: Document }) {
           You no longer have access to this document. It may have been deleted or unshared.
         </Notice>
       )}
+      {banner === 'forbidden' && (
+        <Notice tone="danger" action={<NoticeButton onClick={() => { leavingRef.current = true; window.location.reload(); }} icon={<RotateCw className="size-4" />} label="Reload" />}>
+          Your access to this document changed, so your latest edits couldn’t be saved. Reload to see what you can do now.
+        </Notice>
+      )}
+      {banner === 'signedOut' && (
+        <Notice tone="danger" action={<Link to="/login" className="rounded-full px-3 py-1.5 font-medium hover:bg-white/60">Sign in</Link>}>
+          You’ve been signed out, so your latest edits couldn’t be saved.
+        </Notice>
+      )}
       {saveState === 'error' && banner === null && saveError && (
         <Notice tone="danger" action={<NoticeButton onClick={() => queue.retry()} icon={<RotateCw className="size-4" />} label="Retry" />}>
           Your latest changes aren’t saved yet. {saveError}
-        </Notice>
-      )}
-      {!canEdit && banner === null && (
-        <Notice tone="info">
-          You can view this document but not edit it. Ask {initial.owner.name} for editor access.
         </Notice>
       )}
 
@@ -334,6 +406,18 @@ function DocumentEditor({ initial }: { initial: Document }) {
         </div>
       </div>
 
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete document?"
+        confirmLabel="Delete"
+        danger
+        busy={deleting}
+        onConfirm={deleteThis}
+        onCancel={() => setConfirmDelete(false)}
+      >
+        “{savedTitle}” will be deleted for you and everyone it’s shared with. This can’t be undone.
+      </ConfirmDialog>
+
       <ShareDialog
         open={shareOpen}
         onClose={() => setShareOpen(false)}
@@ -343,6 +427,8 @@ function DocumentEditor({ initial }: { initial: Document }) {
         me={me}
         isOwner={isOwner}
         shares={shares}
+        sharesError={sharesError}
+        onRetryShares={loadShares}
         onSharesChange={setShares}
         onAccessLost={() => {
           setShareOpen(false);

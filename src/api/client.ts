@@ -11,8 +11,12 @@ export class ApiError extends Error {
   }
 }
 
-/** keepalive lets a save finish while the tab is closing; browsers cap keepalive bodies at 64 KB. */
-const KEEPALIVE_MAX = 60_000;
+/** keepalive lets a save finish while the tab is closing; browsers cap keepalive bodies at 64 KiB of bytes. */
+const KEEPALIVE_MAX_BYTES = 60_000;
+export const canUseKeepalive = (payload: string) => new TextEncoder().encode(payload).length < KEEPALIVE_MAX_BYTES;
+
+/** Fired when the server says the session is gone, so the auth layer can send the user to sign-in once. */
+export const UNAUTHENTICATED_EVENT = 'ajaia:unauthenticated';
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;
@@ -23,13 +27,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       credentials: 'same-origin',
       headers: payload !== undefined ? { 'Content-Type': 'application/json' } : undefined,
       body: payload,
-      keepalive: method !== 'GET' && (payload?.length ?? 0) < KEEPALIVE_MAX,
+      keepalive: method !== 'GET' && payload !== undefined && canUseKeepalive(payload),
     });
   } catch {
     throw new ApiError(0, 'network_error', "Can't reach the server. Check your connection.", null);
   }
   if (res.status === 204) return undefined as T;
   const json = (await res.json().catch(() => null)) as unknown;
+  if (res.status === 401 && path !== '/me' && path !== '/auth/login') {
+    window.dispatchEvent(new Event(UNAUTHENTICATED_EVENT));
+  }
   if (!res.ok) {
     const errBody = json as ApiErrorBody | null;
     throw new ApiError(

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from 'react';
 import { ChevronDown, LoaderCircle, X } from 'lucide-react';
 import type { Role, Share, User } from '../../shared/types';
 import { api, ApiError } from '../api/client';
@@ -17,20 +17,23 @@ interface Props {
   owner: User;
   me: User;
   isOwner: boolean;
-  shares: Share[];
-  onSharesChange(shares: Share[]): void;
+  /** null while loading. */
+  shares: Share[] | null;
+  sharesError: boolean;
+  onRetryShares(): void;
+  onSharesChange: Dispatch<SetStateAction<Share[] | null>>;
   /** The server refused (401/403/404): the caller handles lost access. */
   onAccessLost(err: ApiError): void;
 }
 
-export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, shares, onSharesChange, onAccessLost }: Props) {
+export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, shares, sharesError, onRetryShares, onSharesChange, onAccessLost }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('editor');
   const [busy, setBusy] = useState(false);
-  const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [rowBusy, setRowBusy] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -48,7 +51,7 @@ export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, s
   }, [open, isOwner]);
 
   const suggestions = useMemo(() => {
-    const taken = new Set([owner.id, ...shares.map((s) => s.user.id)]);
+    const taken = new Set([owner.id, ...(shares ?? []).map((s) => s.user.id)]);
     return users.filter((u) => !taken.has(u.id));
   }, [users, shares, owner.id]);
 
@@ -72,8 +75,12 @@ export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, s
     setNotice(null);
     try {
       const share = await api.put<Share>(`/documents/${docId}/shares`, { email: value, role });
-      const exists = shares.some((s) => s.user.id === share.user.id);
-      onSharesChange(exists ? shares.map((s) => (s.user.id === share.user.id ? share : s)) : [...shares, share]);
+      onSharesChange((list) => {
+        const cur = list ?? [];
+        return cur.some((s) => s.user.id === share.user.id)
+          ? cur.map((s) => (s.user.id === share.user.id ? share : s))
+          : [...cur, share];
+      });
       setEmail('');
       setNotice(`${share.user.name} can now ${share.role === 'editor' ? 'edit' : 'view'} this document.`);
     } catch (err) {
@@ -84,22 +91,26 @@ export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, s
   }
 
   async function changeRole(s: Share, next: Role | 'remove') {
-    setRowBusy(s.user.id);
+    setRowBusy((b) => new Set(b).add(s.user.id));
     setError(null);
     setNotice(null);
     try {
       if (next === 'remove') {
         await api.del(`/documents/${docId}/shares/${s.user.id}`);
-        onSharesChange(shares.filter((x) => x.user.id !== s.user.id));
+        onSharesChange((list) => (list ?? []).filter((x) => x.user.id !== s.user.id));
         setNotice(`Removed ${s.user.name}’s access.`);
       } else {
         const updated = await api.put<Share>(`/documents/${docId}/shares`, { email: s.user.email, role: next });
-        onSharesChange(shares.map((x) => (x.user.id === s.user.id ? updated : x)));
+        onSharesChange((list) => (list ?? []).map((x) => (x.user.id === s.user.id ? updated : x)));
       }
     } catch (err) {
       fail(err);
     } finally {
-      setRowBusy(null);
+      setRowBusy((b) => {
+        const next = new Set(b);
+        next.delete(s.user.id);
+        return next;
+      });
     }
   }
 
@@ -156,7 +167,7 @@ export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, s
               <button
                 type="submit"
                 disabled={busy}
-                className="h-12 rounded-full bg-action px-6 text-[14px] font-medium text-white hover:bg-action-hover disabled:opacity-60"
+                className="h-12 rounded-full border border-[#747775] px-6 text-[14px] font-medium text-action hover:bg-hover disabled:opacity-60"
               >
                 {busy ? 'Sharing…' : 'Share'}
               </button>
@@ -182,10 +193,10 @@ export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, s
           <PersonRow user={owner} me={me}>
             <span className="pr-2 text-[14px] text-ink-2">Owner</span>
           </PersonRow>
-          {shares.map((s) => (
+          {(shares ?? []).map((s) => (
             <PersonRow key={s.user.id} user={s.user} me={me}>
               {isOwner ? (
-                rowBusy === s.user.id ? (
+                rowBusy.has(s.user.id) ? (
                   <LoaderCircle className="mr-3 size-5 animate-spin text-action" aria-label="Updating" />
                 ) : (
                   <RoleSelect
@@ -202,7 +213,20 @@ export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, s
             </PersonRow>
           ))}
         </ul>
-        {shares.length === 0 && (
+        {shares === null && !sharesError && (
+          <p className="mt-1 flex items-center gap-2 text-[13px] text-ink-3" role="status">
+            <LoaderCircle className="size-4 animate-spin" aria-hidden /> Loading people with access…
+          </p>
+        )}
+        {sharesError && (
+          <p className="mt-1 text-[13px] text-danger" role="alert">
+            Couldn't load who has access.{' '}
+            <button type="button" onClick={onRetryShares} className="font-medium underline underline-offset-2">
+              Try again
+            </button>
+          </p>
+        )}
+        {shares !== null && shares.length === 0 && (
           <p className="mt-1 text-[13px] text-ink-3">Not shared yet. Add someone above to collaborate.</p>
         )}
       </div>
