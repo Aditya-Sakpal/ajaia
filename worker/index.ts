@@ -1,7 +1,7 @@
-import type { Repo } from './db/repo';
 import { createApp } from './app';
 import { PgRepo } from './db/pgRepo';
+import type { Env } from './env';
 
-const app = createApp({ getRepo: (env) => PgRepo.fromConnectionString(env.HYPERDRIVE.connectionString) as unknown as Repo });
+const app = createApp({ getRepo: (env) => PgRepo.fromConnectionString(env.HYPERDRIVE.connectionString) });
 
-export default app satisfies ExportedHandler<import('./env').Env>;
+export default app satisfies ExportedHandler<Env>;
