@@ -20,13 +20,34 @@ interface Props {
   onShare(): void;
   onDelete(): void;
   onHome(): void;
+  canComment: boolean;
+  onComment(): void;
+  onHistory(): void;
+  onDownloadMarkdown(): void;
+  onPrint(): void;
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
 
 /** Docs-style menu row. Only real commands — nothing decorative. */
-export function MenuBar({ editor, editable, isOwner, onNew, onImportNew, onInsertFile, onRename, onShare, onDelete, onHome }: Props) {
+export function MenuBar({
+  editor,
+  editable,
+  isOwner,
+  onNew,
+  onImportNew,
+  onInsertFile,
+  onRename,
+  onShare,
+  onDelete,
+  onHome,
+  canComment,
+  onComment,
+  onHistory,
+  onDownloadMarkdown,
+  onPrint,
+}: Props) {
   const [open, setOpen] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -57,6 +78,11 @@ export function MenuBar({ editor, editable, isOwner, onNew, onImportNew, onInser
         { label: 'Share…', run: onShare },
         { label: 'Delete', disabled: !isOwner, run: onDelete },
       ],
+      [
+        { label: 'Version history', shortcut: `${mod}Alt+Shift+H`, run: onHistory },
+        { label: 'Download as Markdown (.md)', run: onDownloadMarkdown },
+        { label: 'Print / Save as PDF', shortcut: `${mod}P`, run: onPrint },
+      ],
       [{ label: 'Back to documents', run: onHome }],
     ],
     Edit: [
@@ -65,6 +91,7 @@ export function MenuBar({ editor, editable, isOwner, onNew, onImportNew, onInser
         { label: 'Redo', shortcut: `${mod}Y`, disabled: noEdit, run: () => chain().redo().run() },
       ],
     ],
+    Insert: [[{ label: 'Comment', shortcut: `${mod}Alt+M`, disabled: !canComment || !editor, run: onComment }]],
     Format: [
       [
         { label: 'Normal text', disabled: noEdit, run: () => chain().setParagraph().run() },

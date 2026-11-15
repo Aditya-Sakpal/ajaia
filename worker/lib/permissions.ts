@@ -1,11 +1,12 @@
 import type { Access, Role } from '../../shared/types';
 
-export type Action = 'view' | 'edit' | 'rename' | 'delete' | 'listShares' | 'manageShares';
+export type Action = 'view' | 'edit' | 'rename' | 'delete' | 'listShares' | 'manageShares' | 'comment';
 
 /** Spec §4: what each access level may do. */
 const ALLOWED: Record<Access, ReadonlySet<Action>> = {
-  owner: new Set<Action>(['view', 'edit', 'rename', 'delete', 'listShares', 'manageShares']),
-  editor: new Set<Action>(['view', 'edit', 'rename', 'listShares']),
+  owner: new Set<Action>(['view', 'edit', 'rename', 'delete', 'listShares', 'manageShares', 'comment']),
+  editor: new Set<Action>(['view', 'edit', 'rename', 'listShares', 'comment']),
+  commenter: new Set<Action>(['view', 'listShares', 'comment']),
   viewer: new Set<Action>(['view', 'listShares']),
 };
 

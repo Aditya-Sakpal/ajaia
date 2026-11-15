@@ -181,3 +181,74 @@ dialog::backdrop {
   pointer-events: none;
   user-select: none;
 }
+
+/* Print / "Download as PDF" (window.print): only the document page, flowing across paper pages. */
+@media print {
+  @page {
+    size: letter;
+    margin: 1in;
+  }
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  /* App chrome: explicit opt-out, landmarks/widgets, and every sibling along the path to the page
+     (title bar, menus, toolbar, notices, outline, AI bar, dialogs, portals). */
+  [data-print-hide],
+  [role='toolbar'],
+  [role='menubar'],
+  [role='dialog'],
+  [role='alertdialog'],
+  :has(.doc-page) > :not(:has(.doc-page)):not(.doc-page),
+  .doc-page .page-break,
+  .doc-page .page-tail {
+    display: none !important;
+  }
+  /* Unwrap the scroll containers around the page so the content isn't clipped to one screen. */
+  :has(.doc-page) {
+    display: block !important;
+    position: static !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: #fff !important;
+  }
+  .doc-page {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .doc-page .ProseMirror {
+    color: #000 !important;
+    outline: none !important;
+    caret-color: transparent;
+  }
+  .doc-page :is(h1, h2, h3, h4, h5, h6) {
+    break-after: avoid;
+    page-break-after: avoid;
+    break-inside: avoid;
+  }
+  .doc-page :is(pre, blockquote, li, img) {
+    break-inside: avoid;
+  }
+  .doc-page a {
+    color: #000 !important;
+  }
+  .doc-page .is-empty::before,
+  .doc-page [data-placeholder]::before {
+    content: none !important;
+  }
+}

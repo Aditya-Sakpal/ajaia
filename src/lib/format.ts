@@ -1,3 +1,5 @@
+import type { Access } from '../../shared/types';
+
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
 
 /** "just now", "5 minutes ago", "Yesterday", or a date. */
@@ -25,3 +27,12 @@ export function avatarColor(seed: string): string {
   for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return AVATAR_COLORS[h % AVATAR_COLORS.length]!;
 }
+
+export const ACCESS_LABEL: Record<Access, string> = { owner: 'Owner', editor: 'Editor', commenter: 'Commenter', viewer: 'Viewer' };
+/** Badge colours per role: editors stand out, read-only roles stay quiet. */
+export const ACCESS_BADGE: Record<Access, string> = {
+  owner: 'bg-[#d3e3fd] text-[#041e49]',
+  editor: 'bg-[#d3e3fd] text-[#041e49]',
+  commenter: 'bg-[#fef7e0] text-[#594300]',
+  viewer: 'bg-[#e3e3e3] text-ink-2',
+};

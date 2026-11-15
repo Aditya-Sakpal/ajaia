@@ -1,9 +1,9 @@
 import postgres from 'postgres';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
-import type { DocJSON, DocumentSummary, Role, Share, User } from '../../shared/types';
+import type { Comment, DocJSON, DocumentSummary, Role, Share, User, Version, VersionSummary } from '../../shared/types';
 import type { DocumentRecord, Repo, ShareRecord } from './repo';
-import { documentPresence, documents, documentShares, users } from './schema';
+import { documentComments, documentPresence, documents, documentShares, documentVersions, users } from './schema';
 import { withTimeout } from '../lib/timeout';
 
 /** A stuck database call fails with a 503 after this long instead of hanging the request. */
@@ -165,5 +165,112 @@ export class PgRepo implements Repo {
       .innerJoin(users, eq(users.id, documentPresence.userId))
       .where(and(eq(documentPresence.documentId, documentId), gt(documentPresence.lastSeen, sql`now() - make_interval(secs => ${windowSeconds})`)))
       .orderBy(asc(users.name));
+  }
+
+  private readonly commentCols = {
+    id: documentComments.id,
+    authorId: documentComments.authorId,
+    body: documentComments.body,
+    quote: documentComments.quote,
+    resolved: documentComments.resolved,
+    createdAt: documentComments.createdAt,
+    author: userCols,
+  };
+
+  private toComment(r: { id: string; body: string; quote: string; resolved: boolean; createdAt: Date; author: User }): Comment {
+    return { id: r.id, author: r.author, body: r.body, quote: r.quote, resolved: r.resolved, createdAt: r.createdAt.toISOString() };
+  }
+
+  async listComments(documentId: string): Promise<Comment[]> {
+    const rows = await this.db
+      .select(this.commentCols)
+      .from(documentComments)
+      .innerJoin(users, eq(users.id, documentComments.authorId))
+      .where(eq(documentComments.documentId, documentId))
+      .orderBy(asc(documentComments.createdAt));
+    return rows.map((r) => this.toComment(r));
+  }
+
+  async getComment(documentId: string, commentId: string) {
+    const [r] = await this.db
+      .select(this.commentCols)
+      .from(documentComments)
+      .innerJoin(users, eq(users.id, documentComments.authorId))
+      .where(and(eq(documentComments.id, commentId), eq(documentComments.documentId, documentId)));
+    return r ? { ...this.toComment(r), authorId: r.authorId } : null;
+  }
+
+  async createComment(input: { documentId: string; authorId: string; body: string; quote: string }): Promise<Comment> {
+    const [c] = await this.db.insert(documentComments).values(input).returning();
+    const author = (await this.getUserById(input.authorId))!;
+    return this.toComment({ ...c, author });
+  }
+
+  async setCommentResolved(documentId: string, commentId: string, resolved: boolean): Promise<Comment | null> {
+    const [c] = await this.db
+      .update(documentComments)
+      .set({ resolved })
+      .where(and(eq(documentComments.id, commentId), eq(documentComments.documentId, documentId)))
+      .returning();
+    if (!c) return null;
+    const author = (await this.getUserById(c.authorId))!;
+    return this.toComment({ ...c, author });
+  }
+
+  async deleteComment(documentId: string, commentId: string): Promise<void> {
+    await this.db
+      .delete(documentComments)
+      .where(and(eq(documentComments.id, commentId), eq(documentComments.documentId, documentId)));
+  }
+
+  async recordVersion(
+    input: { documentId: string; authorId: string; version: number; title: string; content: DocJSON },
+    mergeWindowSeconds: number,
+  ): Promise<void> {
+    const [newest] = await this.db
+      .select({
+        id: documentVersions.id,
+        authorId: documentVersions.authorId,
+        recent: sql<boolean>`${documentVersions.updatedAt} > now() - make_interval(secs => ${mergeWindowSeconds})`,
+      })
+      .from(documentVersions)
+      .where(eq(documentVersions.documentId, input.documentId))
+      .orderBy(desc(documentVersions.createdAt))
+      .limit(1);
+    if (newest && newest.authorId === input.authorId && newest.recent) {
+      await this.db
+        .update(documentVersions)
+        .set({ version: input.version, title: input.title, content: input.content, updatedAt: sql`now()` })
+        .where(eq(documentVersions.id, newest.id));
+      return;
+    }
+    await this.db.insert(documentVersions).values(input);
+  }
+
+  async listVersions(documentId: string): Promise<VersionSummary[]> {
+    const rows = await this.db
+      .select({ id: documentVersions.id, version: documentVersions.version, title: documentVersions.title, updatedAt: documentVersions.updatedAt, author: userCols })
+      .from(documentVersions)
+      .innerJoin(users, eq(users.id, documentVersions.authorId))
+      .where(eq(documentVersions.documentId, documentId))
+      .orderBy(desc(documentVersions.createdAt))
+      .limit(100);
+    return rows.map((r) => ({ id: r.id, version: r.version, title: r.title, author: r.author, createdAt: r.updatedAt.toISOString() }));
+  }
+
+  async getVersion(documentId: string, versionId: string): Promise<Version | null> {
+    const [r] = await this.db
+      .select({
+        id: documentVersions.id,
+        version: documentVersions.version,
+        title: documentVersions.title,
+        content: documentVersions.content,
+        updatedAt: documentVersions.updatedAt,
+        author: userCols,
+      })
+      .from(documentVersions)
+      .innerJoin(users, eq(users.id, documentVersions.authorId))
+      .where(and(eq(documentVersions.id, versionId), eq(documentVersions.documentId, documentId)));
+    return r ? { id: r.id, version: r.version, title: r.title, content: r.content, author: r.author, createdAt: r.updatedAt.toISOString() } : null;
   }
 }

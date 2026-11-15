@@ -1,4 +1,4 @@
-import type { DocJSON, DocumentSummary, Role, Share, User } from '../../shared/types';
+import type { Comment, DocJSON, DocumentSummary, Role, Share, User, Version, VersionSummary } from '../../shared/types';
 import type { DocumentRecord, Repo, ShareRecord } from './repo';
 
 /** In-memory Repo used by tests. Mirrors PgRepo semantics (cascades, CAS on version). */
@@ -77,6 +77,8 @@ export class MemoryRepo implements Repo {
   async deleteDocument(id: string) {
     this.documents.delete(id);
     for (const [key, s] of this.shares) if (s.documentId === id) this.shares.delete(key);
+    for (const [key, c] of this.comments) if (c.documentId === id) this.comments.delete(key);
+    for (const [key, v] of this.versions) if (v.documentId === id) this.versions.delete(key);
   }
 
   async getShare(documentId: string, userId: string) {
@@ -111,5 +113,74 @@ export class MemoryRepo implements Repo {
       .filter(([k, seen]) => k.startsWith(`${documentId}:`) && seen.getTime() >= cutoff)
       .map(([k]) => this.users.get(k.split(':')[1]!))
       .filter((u): u is User => !!u);
+  }
+
+  readonly comments = new Map<string, { id: string; documentId: string; authorId: string; body: string; quote: string; resolved: boolean; createdAt: Date }>();
+
+  private commentDto(c: { id: string; authorId: string; body: string; quote: string; resolved: boolean; createdAt: Date }): Comment {
+    return { id: c.id, author: this.users.get(c.authorId)!, body: c.body, quote: c.quote, resolved: c.resolved, createdAt: c.createdAt.toISOString() };
+  }
+
+  async listComments(documentId: string): Promise<Comment[]> {
+    return [...this.comments.values()]
+      .filter((c) => c.documentId === documentId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      .map((c) => this.commentDto(c));
+  }
+
+  async getComment(documentId: string, commentId: string) {
+    const c = this.comments.get(commentId);
+    return c && c.documentId === documentId ? { ...this.commentDto(c), authorId: c.authorId } : null;
+  }
+
+  async createComment(input: { documentId: string; authorId: string; body: string; quote: string }): Promise<Comment> {
+    const c = { id: crypto.randomUUID(), ...input, resolved: false, createdAt: this.now() };
+    this.comments.set(c.id, c);
+    return this.commentDto(c);
+  }
+
+  async setCommentResolved(documentId: string, commentId: string, resolved: boolean): Promise<Comment | null> {
+    const c = this.comments.get(commentId);
+    if (!c || c.documentId !== documentId) return null;
+    c.resolved = resolved;
+    return this.commentDto(c);
+  }
+
+  async deleteComment(documentId: string, commentId: string): Promise<void> {
+    if (this.comments.get(commentId)?.documentId === documentId) this.comments.delete(commentId);
+  }
+
+  readonly versions = new Map<string, { id: string; documentId: string; authorId: string; version: number; title: string; content: DocJSON; createdAt: Date; updatedAt: Date }>();
+
+  async recordVersion(
+    input: { documentId: string; authorId: string; version: number; title: string; content: DocJSON },
+    mergeWindowSeconds: number,
+  ): Promise<void> {
+    const newest = [...this.versions.values()]
+      .filter((v) => v.documentId === input.documentId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+    const now = this.now();
+    if (newest && newest.authorId === input.authorId && now.getTime() - newest.updatedAt.getTime() <= mergeWindowSeconds * 1000) {
+      Object.assign(newest, { version: input.version, title: input.title, content: input.content, updatedAt: now });
+      return;
+    }
+    const v = { id: crypto.randomUUID(), ...input, createdAt: now, updatedAt: now };
+    this.versions.set(v.id, v);
+  }
+
+  private versionSummary(v: { id: string; authorId: string; version: number; title: string; updatedAt: Date }): VersionSummary {
+    return { id: v.id, version: v.version, title: v.title, author: this.users.get(v.authorId)!, createdAt: v.updatedAt.toISOString() };
+  }
+
+  async listVersions(documentId: string): Promise<VersionSummary[]> {
+    return [...this.versions.values()]
+      .filter((v) => v.documentId === documentId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map((v) => this.versionSummary(v));
+  }
+
+  async getVersion(documentId: string, versionId: string): Promise<Version | null> {
+    const v = this.versions.get(versionId);
+    return v && v.documentId === documentId ? { ...this.versionSummary(v), content: v.content } : null;
   }
 }

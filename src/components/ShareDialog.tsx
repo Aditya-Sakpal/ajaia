@@ -1,3 +1,4 @@
+import { ACCESS_LABEL } from '../lib/format';
 import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from 'react';
 import { ChevronDown, LoaderCircle, X } from 'lucide-react';
 import type { Role, Share, User } from '../../shared/types';
@@ -82,7 +83,7 @@ export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, s
           : [...cur, share];
       });
       setEmail('');
-      setNotice(`${share.user.name} can now ${share.role === 'editor' ? 'edit' : 'view'} this document.`);
+      setNotice(`${share.user.name} can now ${share.role === 'editor' ? 'edit' : share.role === 'commenter' ? 'comment on' : 'view'} this document.`);
     } catch (err) {
       fail(err);
     } finally {
@@ -208,7 +209,7 @@ export function ShareDialog({ open, onClose, docId, title, owner, me, isOwner, s
                   />
                 )
               ) : (
-                <span className="pr-2 text-[14px] text-ink-2">{s.role === 'editor' ? 'Editor' : 'Viewer'}</span>
+                <span className="pr-2 text-[14px] text-ink-2">{ACCESS_LABEL[s.role]}</span>
               )}
             </PersonRow>
           ))}
@@ -278,6 +279,7 @@ function RoleSelect({
         className="h-full cursor-pointer appearance-none bg-transparent pr-8 pl-3 text-[14px] text-ink focus:outline-none"
       >
         <option value="editor">Editor</option>
+        <option value="commenter">Commenter</option>
         <option value="viewer">Viewer</option>
         {allowRemove && (
           <>

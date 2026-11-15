@@ -15,6 +15,13 @@
       "when": 1794759729627,
       "tag": "0001_presence",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794761813181,
+      "tag": "0002_comments_versions_commenter",
+      "breakpoints": true
     }
   ]
 }

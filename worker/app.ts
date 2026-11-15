@@ -4,6 +4,8 @@ import type { Repo } from './db/repo';
 import type { AiClient } from './lib/ai';
 import { aiRoutes } from './routes/ai';
 import { presenceRoutes } from './routes/presence';
+import { commentRoutes } from './routes/comments';
+import { versionRoutes } from './routes/versions';
 import type { Env } from './env';
 import { ApiError, errorBody } from './lib/errors';
 import { requireUser } from './lib/session';
@@ -61,6 +63,8 @@ export function createApp(deps: AppDeps) {
   app.route('/documents', shareRoutes);
   app.route('/documents', aiRoutes);
   app.route('/documents', presenceRoutes);
+  app.route('/documents', commentRoutes);
+  app.route('/documents', versionRoutes);
 
   app.notFound((c) => c.json(errorBody('not_found', 'Not found.'), 404));
 

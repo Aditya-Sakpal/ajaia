@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { EditorContent, useEditor, type Editor, type JSONContent } from '@tiptap/react';
-import { Copy, Lock, RotateCw, Users, X } from 'lucide-react';
+import { Copy, Lock, MessageSquarePlus, RotateCw, Users, X } from 'lucide-react';
 import { DEFAULT_TITLE, TITLE_MAX, type DocJSON, type Document, type Share } from '../../shared/types';
 import { api, ApiError } from '../api/client';
 import { AccountMenu } from '../components/AccountMenu';
@@ -22,6 +22,10 @@ import { createSaveQueue, type SaveState } from '../editor/saveQueue';
 import { isSameSnapshot, type Snapshot } from '../editor/snapshot';
 import { mergeDocs } from '../editor/merge';
 import { Avatar } from '../components/Avatar';
+import { CommentsPanel } from '../components/CommentsPanel';
+import { VersionHistoryDialog } from '../components/VersionHistoryDialog';
+import { docToMarkdown, downloadText, safeFilename } from '../editor/exportMarkdown';
+import { ACCESS_BADGE, ACCESS_LABEL } from '../lib/format';
 import type { User } from '../../shared/types';
 import { useAuth } from '../lib/auth';
 
@@ -80,7 +84,8 @@ function DocumentEditor({ initial }: { initial: Document }) {
   const { user, registerBeforeSignOut } = useAuth();
   const navigate = useNavigate();
   const me = user!;
-  const canEdit = initial.access !== 'viewer';
+  const canEdit = initial.access === 'owner' || initial.access === 'editor';
+  const canComment = initial.access !== 'viewer';
   const isOwner = initial.access === 'owner';
 
   const [title, setTitle] = useState(initial.title);
@@ -332,6 +337,49 @@ function DocumentEditor({ initial }: { initial: Document }) {
 
   useEffect(loadShares, [loadShares]);
 
+  // Comments, version history and export.
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [pendingQuote, setPendingQuote] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  function startComment() {
+    const ed = editorRef.current;
+    if (ed && canComment) {
+      const { from, to } = ed.state.selection;
+      setPendingQuote(from === to ? '' : ed.state.doc.textBetween(from, to, ' ').trim());
+    }
+    setCommentsOpen(true);
+  }
+
+  function downloadMarkdown() {
+    const ed = editorRef.current;
+    if (!ed) return;
+    downloadText(`${safeFilename(titleRef.current)}.md`, docToMarkdown(ed.getJSON() as DocJSON), 'text/markdown;charset=utf-8');
+  }
+
+  /** Restoring is an ordinary edit: the content goes through autosave, so it is itself versioned and undoable. */
+  function restoreVersion(content: DocJSON) {
+    const ed = editorRef.current;
+    if (!ed || !ed.isEditable) return;
+    ed.commands.setContent(content as JSONContent, { emitUpdate: true });
+    setHeadings(collectHeadings(ed));
+  }
+
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.altKey && !e.shiftKey && e.code === 'KeyM') {
+        e.preventDefault();
+        startComment();
+      } else if (mod && e.altKey && e.shiftKey && e.code === 'KeyH') {
+        e.preventDefault();
+        setHistoryOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   function openShare() {
     setShareOpen(true);
     loadShares(); // always show the current list, not the one from page load
@@ -454,7 +502,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
   }, [banner, editor]);
 
   const editable = canEdit && banner === null;
-  const roleLabel = isOwner ? null : initial.access === 'editor' ? 'Editor' : 'Viewer';
+  const roleLabel = isOwner ? null : ACCESS_LABEL[initial.access];
 
   return (
     <div className="flex h-full flex-col bg-chrome">
@@ -484,9 +532,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
             {roleLabel && (
               <span
                 title={`Owner: ${initial.owner.name}`}
-                className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium sm:inline ${
-                  roleLabel === 'Editor' ? 'bg-[#d3e3fd] text-[#041e49]' : 'bg-[#e3e3e3] text-ink-2'
-                }`}
+                className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium sm:inline ${ACCESS_BADGE[initial.access]}`}
               >
                 Shared with you · {roleLabel}
               </span>
@@ -508,6 +554,11 @@ function DocumentEditor({ initial }: { initial: Document }) {
             onShare={openShare}
             onDelete={() => setConfirmDelete(true)}
             onHome={() => void goHome()}
+            canComment={canComment && banner === null}
+            onComment={startComment}
+            onHistory={() => setHistoryOpen(true)}
+            onDownloadMarkdown={downloadMarkdown}
+            onPrint={() => window.print()}
           />
         </div>
 
@@ -529,6 +580,17 @@ function DocumentEditor({ initial }: { initial: Document }) {
                 ))}
             </div>
           )}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => (commentsOpen && !pendingQuote ? setCommentsOpen(false) : startComment())}
+            aria-pressed={commentsOpen}
+            aria-label="Comments"
+            title={canComment ? 'Comments — select text first to comment on it' : 'Comments'}
+            className={`flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-hover ${commentsOpen ? 'bg-active' : ''}`}
+          >
+            <MessageSquarePlus className="size-5" aria-hidden />
+          </button>
           <button
             type="button"
             onClick={openShare}
@@ -620,7 +682,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
       {/* Canvas */}
       <div className="relative flex min-h-0 flex-1 overflow-y-auto border-t border-line-soft">
         <Outline headings={headings} editor={editor} />
-        <div className="flex min-w-0 flex-1 flex-col items-center px-2 py-4 sm:px-6 lg:pr-[248px]">
+        <div className={`flex min-w-0 flex-1 flex-col items-center px-2 py-4 sm:px-6 ${commentsOpen ? '' : 'lg:pr-[248px]'}`}>
           <article
             className="doc-page h-max min-h-[1056px] w-full max-w-[816px] shrink-0 lg:min-h-0 border border-line bg-white px-6 py-10 shadow-[0_1px_3px_rgb(60_64_67/0.15)] sm:px-[72px] sm:py-[72px] lg:px-[96px] lg:py-[96px]"
             onClick={(e) => {
@@ -633,7 +695,31 @@ function DocumentEditor({ initial }: { initial: Document }) {
             <AiBar editor={editor} docId={initial.id} autocomplete={autocompleteOn} onAutocompleteChange={changeAutocomplete} />
           )}
         </div>
+        {commentsOpen && (
+          <div className="sticky top-0 h-full shrink-0 border-l border-line-soft bg-white" data-print-hide>
+            <CommentsPanel
+              documentId={initial.id}
+              me={me}
+              access={initial.access}
+              ownerId={initial.owner.id}
+              pendingQuote={pendingQuote}
+              onClearQuote={() => setPendingQuote('')}
+              onClose={() => {
+                setCommentsOpen(false);
+                setPendingQuote('');
+              }}
+            />
+          </div>
+        )}
       </div>
+
+      <VersionHistoryDialog
+        documentId={initial.id}
+        open={historyOpen}
+        canRestore={editable}
+        onClose={() => setHistoryOpen(false)}
+        onRestore={(v) => restoreVersion(v.content)}
+      />
 
       <ConfirmDialog
         open={confirmDelete}

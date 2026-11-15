@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { z } from 'zod';
-import { CONTENT_MAX_BYTES, ROLES, TITLE_MAX } from '../../shared/types';
+import { COMMENT_MAX, CONTENT_MAX_BYTES, QUOTE_MAX, ROLES, TITLE_MAX } from '../../shared/types';
 import { ApiError } from './errors';
 
 export const emailSchema = z.string().trim().toLowerCase().min(1, 'Email is required.').max(320);
@@ -47,8 +47,15 @@ export const patchDocumentSchema = z
 
 export const shareSchema = z.object({
   email: emailSchema,
-  role: z.enum(ROLES as [string, ...string[]], { error: 'Role must be editor or viewer.' }),
+  role: z.enum(ROLES as [string, ...string[]], { error: 'Role must be editor, commenter or viewer.' }),
 });
+
+export const createCommentSchema = z.object({
+  body: z.string().trim().min(1, "Comment can't be empty.").max(COMMENT_MAX, `Comment must be at most ${COMMENT_MAX} characters.`),
+  quote: z.string().trim().max(QUOTE_MAX).optional().default(''),
+});
+
+export const patchCommentSchema = z.object({ resolved: z.boolean() });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (s: string) => UUID_RE.test(s);

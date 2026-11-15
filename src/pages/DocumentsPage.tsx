@@ -9,7 +9,7 @@ import { DocIcon } from '../components/DocIcon';
 import { ImportTile } from '../components/ImportButton';
 import { LogoMark } from '../components/Logo';
 import { useAuth } from '../lib/auth';
-import { relativeTime } from '../lib/format';
+import { relativeTime, ACCESS_BADGE, ACCESS_LABEL } from '../lib/format';
 
 export function DocumentsPage() {
   const { user } = useAuth();
@@ -222,17 +222,17 @@ function DocRow({ doc, mine, onDelete }: { doc: DocumentSummary; mine?: boolean;
           <span className="block truncate text-[14px] font-medium text-ink">{doc.title}</span>
           {!mine && (
             <span className="block truncate text-[12px] text-ink-3 sm:hidden">
-              {doc.access === 'editor' ? 'Editor' : 'Viewer'} · shared by {doc.owner.name}
+              {ACCESS_LABEL[doc.access]} · shared by {doc.owner.name}
             </span>
           )}
         </span>
         {!mine && (
           <span
             className={`hidden shrink-0 sm:inline rounded-full px-2 py-0.5 text-[12px] font-medium ${
-              doc.access === 'editor' ? 'bg-[#d3e3fd] text-[#041e49]' : 'bg-[#e3e3e3] text-ink-2'
+              ACCESS_BADGE[doc.access]
             }`}
           >
-            {doc.access === 'editor' ? 'Editor' : 'Viewer'}
+            {ACCESS_LABEL[doc.access]}
           </span>
         )}
       </Link>

@@ -26,7 +26,7 @@ A small team document editor where a signed-in user can write formatted document
 
 ### Deliberately out of scope (state in README/video)
 
-Real-time co-editing (CRDT/WebSockets) · real authentication/passwords · comments/suggestions · version history · images & tables in the editor · PDF export · link sharing / public docs · email notifications · mobile-optimised editing (layout is responsive, not tuned).
+Real-time co-editing (CRDT/WebSockets) · real authentication/passwords · suggestion mode (tracked changes) · images & tables in the editor · link sharing / public docs · email notifications · mobile-optimised editing (layout is responsive, not tuned).
 
 Rationale: real-time co-editing is the most Google-Docs-like feature but is a multi-day problem done properly; a version-checked save gives correct multi-user behaviour within the timebox. Role-based sharing (editor/viewer) is the one stretch item taken, because it makes the access logic meaningful and testable at small cost.
 
@@ -52,6 +52,8 @@ No passwords: sign-in is a user picker. Clearly labelled "Demo sign-in" in the U
 | Delete | ✅ | 403 | 403 | 404 |
 | List collaborators | ✅ | ✅ | ✅ | 404 |
 | Add / change / revoke shares | ✅ | 403 | 403 | 404 |
+
+**Enhancements (added after the core slice, §10):** a fourth role, **commenter** — view + comment, no edits. Comment/resolve: owner, editor, commenter (viewer 403). Delete a comment: its author or the document owner. Version history: anyone with view access can list and preview; restoring is a normal content edit (owner/editor).
 
 No-access returns **404** (don't leak existence); insufficient role returns **403**.
 
@@ -125,3 +127,12 @@ Validation limits: title trimmed, 1–200 chars (create defaults to "Untitled do
 | Aiven free service powers off when idle | Check before submitting; note in SUBMISSION.md. |
 | `.docx` conversion quirks | Supported subset stated; conversion errors surfaced, never crash. |
 | Overrunning timebox | Tasks ordered so every prefix is a shippable product; docs task is never skipped. |
+
+## 10. Enhancements (post-core)
+
+| # | Capability | Definition of done |
+|---|---|---|
+| E1 | Commenter role | Owner can share as **commenter**; commenter sees the doc read-only but can comment. DB check constraint allows `commenter`. |
+| E2 | Comments | Select text → Insert › Comment (Ctrl+Alt+M) or the comment button; side panel lists open + resolved comments with the quoted text. `GET/POST /documents/:id/comments`, `PATCH/DELETE /documents/:id/comments/:commentId`. Comments are anchored by a quote snapshot, not a live range. |
+| E3 | Version history | Every content save records a snapshot; saves by the same author within 2 min update one snapshot. File › Version history lists versions (newest first, max 100) with a read-only preview; editors can restore (goes through autosave, so it is undoable and versioned). `GET /documents/:id/versions[/:versionId]`. |
+| E4 | Export | File › Download as Markdown (client-side ProseMirror → Markdown); File › Print / Save as PDF uses the browser print dialog with a print stylesheet that prints only the page. |

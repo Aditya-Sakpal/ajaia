@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { Access } from '../../shared/types';
 import { can, getAccess, type Action } from './permissions';
 
-const ALL_ACCESS: Access[] = ['owner', 'editor', 'viewer'];
-const ALL_ACTIONS: Action[] = ['view', 'edit', 'rename', 'delete', 'listShares', 'manageShares'];
+const ALL_ACCESS: Access[] = ['owner', 'editor', 'commenter', 'viewer'];
+const ALL_ACTIONS: Action[] = ['view', 'edit', 'rename', 'delete', 'listShares', 'manageShares', 'comment'];
 
 // Spec §4 access matrix.
 const matrix: Record<Access, Action[]> = {
-  owner: ['view', 'edit', 'rename', 'delete', 'listShares', 'manageShares'],
-  editor: ['view', 'edit', 'rename', 'listShares'],
+  owner: ['view', 'edit', 'rename', 'delete', 'listShares', 'manageShares', 'comment'],
+  editor: ['view', 'edit', 'rename', 'listShares', 'comment'],
+  commenter: ['view', 'listShares', 'comment'],
   viewer: ['view', 'listShares'],
 };
 

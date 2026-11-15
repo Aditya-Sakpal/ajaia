@@ -1,6 +1,7 @@
 // API DTOs shared by the Worker and the SPA. Single source of truth (spec §6).
 
-export type Role = 'editor' | 'viewer';
+/** commenter: can read and comment, but not edit (spec §4). */
+export type Role = 'editor' | 'commenter' | 'viewer';
 export type Access = 'owner' | Role;
 
 export interface User {
@@ -41,12 +42,38 @@ export interface DocumentLists {
   shared: DocumentSummary[];
 }
 
+export interface Comment {
+  id: string;
+  author: User;
+  /** The text that was selected when the comment was made (may be empty). */
+  quote: string;
+  body: string;
+  resolved: boolean;
+  createdAt: string;
+}
+
+export interface VersionSummary {
+  id: string;
+  /** Document version number this snapshot captured. */
+  version: number;
+  title: string;
+  author: User;
+  createdAt: string;
+}
+
+export interface Version extends VersionSummary {
+  content: DocJSON;
+}
+
+export const COMMENT_MAX = 2000;
+export const QUOTE_MAX = 500;
+
 export interface ApiErrorBody {
   error: { code: string; message: string };
   current?: Document;
 }
 
-export const ROLES: readonly Role[] = ['editor', 'viewer'] as const;
+export const ROLES: readonly Role[] = ['editor', 'commenter', 'viewer'] as const;
 export const TITLE_MAX = 200;
 export const DEFAULT_TITLE = 'Untitled document';
 export const CONTENT_MAX_BYTES = 1_000_000;

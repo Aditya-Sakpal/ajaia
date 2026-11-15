@@ -5,6 +5,7 @@ import { loadDocWithAccess, ownerOf, toDocumentDto } from '../lib/access';
 import { ApiError, notFound } from '../lib/errors';
 import { can } from '../lib/permissions';
 import { createDocumentSchema, parseBody, patchDocumentSchema } from '../lib/validation';
+import { VERSION_MERGE_WINDOW_SECONDS } from './versions';
 
 export const documentRoutes = new Hono<AppEnv>()
   .get('/', async (c) => c.json(await c.var.repo.listDocumentsForUser(c.var.user.id)))
@@ -36,6 +37,12 @@ export const documentRoutes = new Hono<AppEnv>()
       throw new ApiError(409, 'version_conflict', 'This document was changed elsewhere.', {
         current: toDocumentDto(current, await ownerOf(c, current), access),
       });
+    }
+    if (input.content !== undefined) {
+      await c.var.repo.recordVersion(
+        { documentId: id, authorId: c.var.user.id, version: result.version, title: result.title, content: result.content },
+        VERSION_MERGE_WINDOW_SECONDS,
+      );
     }
     return c.json(toDocumentDto(result, await ownerOf(c, result), access));
   })
