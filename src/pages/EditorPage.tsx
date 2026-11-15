@@ -19,6 +19,9 @@ import { generateJSON } from '@tiptap/core';
 import { IMPORT_ACCEPT, fileToHtml, titleFromFilename, validateImportFile } from '../import/fileImport';
 import { createSaveQueue, type SaveState } from '../editor/saveQueue';
 import { isSameSnapshot, type Snapshot } from '../editor/snapshot';
+import { mergeDocs } from '../editor/merge';
+import { Avatar } from '../components/Avatar';
+import type { User } from '../../shared/types';
 import { useAuth } from '../lib/auth';
 
 type LoadState = { status: 'loading' } | { status: 'error'; message: string; notFound: boolean } | { status: 'ready'; doc: Document };
@@ -104,6 +107,25 @@ function DocumentEditor({ initial }: { initial: Document }) {
 
   const handleLost = useCallback(() => setBanner('lost'), []);
 
+  // Live collaboration: the content both sides last agreed on (for three-way merges), who is here,
+  // and a short note when someone else's edits were merged in.
+  const baseRef = useRef<DocJSON>(initial.content);
+  const [viewers, setViewers] = useState<User[]>([]);
+  const [syncNote, setSyncNote] = useState<string | null>(null);
+  const bannerRef = useRef<Banner>(null);
+  bannerRef.current = banner;
+
+  /** Replace the editor content without creating a save or losing the caret. */
+  const applyContent = useCallback((content: DocJSON) => {
+    const ed = editorRef.current;
+    if (!ed || JSON.stringify(ed.getJSON()) === JSON.stringify(content)) return;
+    const { from, to } = ed.state.selection;
+    ed.commands.setContent(content as JSONContent, { emitUpdate: false });
+    const max = ed.state.doc.content.size;
+    ed.commands.setTextSelection({ from: Math.min(from, max), to: Math.min(to, max) });
+    setHeadings(collectHeadings(ed));
+  }, []);
+
   const queue = useMemo(() => {
     const q = createSaveQueue<Snapshot>(async (snap) => {
         try {
@@ -113,6 +135,7 @@ function DocumentEditor({ initial }: { initial: Document }) {
             content: snap.content,
           });
           versionRef.current = updated.version;
+          baseRef.current = snap.content;
           setSaveError(null);
           savedTitleRef.current = updated.title;
           setSavedTitle(updated.title);
@@ -125,6 +148,30 @@ function DocumentEditor({ initial }: { initial: Document }) {
             setSavedTitle(current.title);
             setSaveError(null);
             return;
+          }
+          // Someone else saved first: merge their blocks with ours instead of making the user choose.
+          if (current) {
+            const mine = (editorRef.current?.getJSON() as DocJSON | undefined) ?? snap.content;
+            const merged = mergeDocs(baseRef.current, mine, current.content);
+            if (merged) {
+              try {
+                applyContent(merged);
+                const saved = await api.patch<Document>(`/documents/${initial.id}`, {
+                  version: current.version,
+                  title: snap.title,
+                  content: merged,
+                });
+                versionRef.current = saved.version;
+                baseRef.current = merged;
+                savedTitleRef.current = saved.title;
+                setSavedTitle(saved.title);
+                setSaveError(null);
+                setSyncNote('Merged with edits made by someone else.');
+                return;
+              } catch {
+                /* fall through to the conflict banner */
+              }
+            }
           }
           setSaveError(err instanceof ApiError ? err.message : 'Your changes could not be saved.');
           if (err instanceof ApiError) {
@@ -140,9 +187,49 @@ function DocumentEditor({ initial }: { initial: Document }) {
         }
       }, 1000);
     return q;
-  }, [initial.id]);
+  }, [initial.id, applyContent]);
 
   useEffect(() => queue.subscribe(setSaveState), [queue]);
+
+  // Heartbeat every 4 s: report presence, see who else is here, and pull remote edits while idle.
+  useEffect(() => {
+    let stopped = false;
+    const tick = async () => {
+      if (document.visibilityState === 'hidden') return;
+      try {
+        const p = await api.post<{ version: number; viewers: User[] }>(`/documents/${initial.id}/presence`, {});
+        if (stopped) return;
+        setViewers(p.viewers);
+        if (p.version <= versionRef.current || bannerRef.current || queue.hasUnsavedChanges()) return;
+        const latest = await api.get<Document>(`/documents/${initial.id}`);
+        if (stopped || latest.version <= versionRef.current || queue.hasUnsavedChanges()) return;
+        versionRef.current = latest.version;
+        baseRef.current = latest.content;
+        applyContent(latest.content);
+        savedTitleRef.current = latest.title;
+        setSavedTitle(latest.title);
+        if (document.activeElement !== titleInputRef.current) {
+          titleRef.current = latest.title;
+          setTitle(latest.title);
+        }
+        setSyncNote('Updated with the latest changes.');
+      } catch (err) {
+        if (err instanceof ApiError && (err.status === 404 || err.status === 403)) setBanner('lost');
+      }
+    };
+    void tick();
+    const id = setInterval(tick, 4000);
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
+  }, [initial.id, queue, applyContent]);
+
+  useEffect(() => {
+    if (!syncNote) return;
+    const t = setTimeout(() => setSyncNote(null), 3500);
+    return () => clearTimeout(t);
+  }, [syncNote]);
 
   // Flush on unmount (route change) and warn before closing the tab with unsaved changes.
   useEffect(() => {
@@ -423,6 +510,23 @@ function DocumentEditor({ initial }: { initial: Document }) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {syncNote && (
+            <span role="status" className="hidden text-[13px] text-ink-2 lg:inline">
+              {syncNote}
+            </span>
+          )}
+          {viewers.filter((u) => u.id !== me.id).length > 0 && (
+            <div className="flex -space-x-1.5" aria-label="People viewing now" data-testid="presence">
+              {viewers
+                .filter((u) => u.id !== me.id)
+                .slice(0, 4)
+                .map((u) => (
+                  <span key={u.id} className="rounded-full p-[2px] ring-2 ring-[#1e8e3e]">
+                    <Avatar user={u} size={28} title={`${u.name} is viewing now`} />
+                  </span>
+                ))}
+            </div>
+          )}
           <button
             type="button"
             onClick={openShare}

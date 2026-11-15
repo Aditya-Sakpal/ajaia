@@ -3,7 +3,7 @@ import type { Editor } from '@tiptap/react';
 import { useEditorState } from '@tiptap/react';
 import { ArrowUp, ChevronDown, FileText, LoaderCircle, Mail, NotebookPen, Sparkles, Wand2, X } from 'lucide-react';
 import { api, ApiError } from '../api/client';
-import { markdownToHtml } from '../editor/aiInsert';
+import { applyAiResult, markdownToHtml, type Placement } from '../editor/aiInsert';
 
 type Action =
   | 'continue'
@@ -35,6 +35,7 @@ export function AiBar({ editor, docId, autocomplete, onAutocompleteChange }: Pro
   const [open, setOpen] = useState(true);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState<Action | null>(null);
+  const busyRef = useRef(false); // synchronous guard against double clicks
   const [error, setError] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -43,39 +44,48 @@ export function AiBar({ editor, docId, autocomplete, onAutocompleteChange }: Pro
   useEffect(() => {
     if (!more) return;
     const close = (e: MouseEvent) => !moreRef.current?.contains(e.target as Node) && setMore(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMore(false);
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [more]);
 
   async function run(action: Action, customPrompt?: string) {
+    if (busyRef.current) return;
     const { from, to, empty } = editor.state.selection;
     const selection = empty ? undefined : editor.state.doc.textBetween(from, to, '\n', ' ');
+    const docAtRequest = editor.state.doc;
+    busyRef.current = true;
     setBusy(action);
     setError(null);
     setMore(false);
     try {
-      const { markdown } = await api.post<{ markdown: string }>(`/documents/${docId}/ai/generate`, {
-        action,
-        context: editor.getText({ blockSeparator: '\n' }),
-        selection,
-        prompt: customPrompt,
-      });
-      if (!markdown.trim()) {
+      const { markdown, placement } = await api.post<{ markdown: string; placement: Placement }>(
+        `/documents/${docId}/ai/generate`,
+        { action, context: editor.getText({ blockSeparator: '\n' }), selection, prompt: customPrompt },
+      );
+      if (!markdown?.trim()) {
         setError('The assistant had nothing to add. Try rephrasing.');
         return;
       }
-      const html = markdownToHtml(markdown);
-      const replace = selection !== undefined && (REWRITES.some((r) => r.id === action) || action === 'custom');
-      // One transaction, so a single Undo removes the AI text.
-      editor
-        .chain()
-        .focus()
-        .insertContentAt(replace ? { from, to } : to, html)
-        .run();
+      const outcome = applyAiResult(editor, {
+        html: markdownToHtml(markdown),
+        placement,
+        range: { from, to },
+        docAtRequest,
+      });
+      if (outcome === 'stale') {
+        setError('The document changed while AI was writing. Try again.');
+        return;
+      }
       if (action === 'custom') setPrompt('');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'The assistant could not respond. Please try again.');
     } finally {
+      busyRef.current = false;
       setBusy(null);
     }
   }
@@ -132,24 +142,28 @@ export function AiBar({ editor, docId, autocomplete, onAutocompleteChange }: Pro
               onClick={() => setMore((m) => !m)}
               className="flex items-center gap-1 rounded-full bg-pill px-3 py-1.5 text-[13px] text-ink hover:bg-pill-hover disabled:opacity-50"
             >
+              {busy && REWRITES.some((r) => r.id === busy) ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null}
               More <ChevronDown className="size-4" aria-hidden />
             </button>
             {more && (
-              <div role="menu" className="absolute bottom-full left-1/2 z-30 mb-2 w-60 -translate-x-1/2 rounded-lg bg-white py-1.5 shadow-[0_2px_6px_2px_rgb(60_64_67/0.15),0_1px_2px_rgb(60_64_67/0.3)]">
+              <div
+                role="menu"
+                className="absolute bottom-full left-1/2 z-30 mb-2 w-64 -translate-x-1/2 rounded-lg bg-white py-1.5 shadow-[0_2px_6px_2px_rgb(60_64_67/0.15),0_1px_2px_rgb(60_64_67/0.3)]"
+              >
                 <p className="px-4 pt-1 pb-1.5 text-[12px] text-ink-3">
-                  {hasSelection ? 'Rewrite the selected text' : 'Select text in the document to rewrite it'}
+                  {hasSelection ? 'Rewrite the selected text' : 'Rewrite the whole document (or select text first)'}
                 </p>
                 {REWRITES.map((r) => (
                   <button
                     key={r.id}
                     type="button"
                     role="menuitem"
-                    disabled={!hasSelection}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => run(r.id)}
-                    className="block w-full px-4 py-1.5 text-left text-[14px] text-ink hover:bg-hover disabled:text-ink-3/60 disabled:hover:bg-transparent"
+                    className="block w-full px-4 py-1.5 text-left text-[14px] text-ink hover:bg-hover"
                   >
                     {r.label}
+                    {!hasSelection && <span className="text-ink-3"> (whole document)</span>}
                   </button>
                 ))}
                 <label className="mt-1 flex cursor-pointer items-center justify-between border-t border-line-soft px-4 pt-2.5 pb-1.5 text-[14px] text-ink">
@@ -178,6 +192,9 @@ export function AiBar({ editor, docId, autocomplete, onAutocompleteChange }: Pro
             id="ai-prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setPrompt('');
+            }}
             placeholder={hasSelection ? 'Tell AI how to change the selection…' : 'Write with AI…'}
             maxLength={2000}
             autoComplete="off"

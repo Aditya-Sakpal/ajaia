@@ -2,7 +2,14 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { AppEnv } from '../app';
 import { loadDocWithAccess } from '../lib/access';
-import { buildCompletionMessages, buildGenerateMessages, type ChatMessage } from '../lib/aiPrompts';
+import {
+  GENERATE_SCHEMA,
+  buildCompletionMessages,
+  buildGenerateMessages,
+  parseGenerateResult,
+  resolvePlacement,
+  type ChatMessage,
+} from '../lib/aiPrompts';
 import { ApiError } from '../lib/errors';
 import { parseBody } from '../lib/validation';
 
@@ -32,28 +39,26 @@ function requireAi(c: Context<AppEnv>) {
   return ai;
 }
 
-async function ask(c: Context<AppEnv>, messages: ChatMessage[], maxTokens: number): Promise<string> {
-  const ai = requireAi(c);
-  try {
-    return await ai.complete(messages, { maxTokens });
-  } catch (err) {
-    console.error('AI request failed', err);
-    throw new ApiError(502, 'ai_failed', 'The AI assistant could not respond. Please try again.');
-  }
-}
+const aiFailed = () => new ApiError(502, 'ai_failed', 'The AI assistant could not respond. Please try again.');
 
 export const aiRoutes = new Hono<AppEnv>()
   .post('/:id/ai/complete', async (c) => {
     await loadDocWithAccess(c, c.req.param('id'), 'edit');
-    requireAi(c);
+    const ai = requireAi(c);
     const { before } = await parseBody(c, completeSchema);
     if (!before.trim()) return c.json({ completion: '' });
-    const text = await ask(c, buildCompletionMessages(before), 300);
+    let text: string;
+    try {
+      text = await ai.complete(buildCompletionMessages(before), { maxTokens: 300 });
+    } catch (err) {
+      console.error('AI completion failed', err);
+      throw aiFailed();
+    }
     return c.json({ completion: text.replace(/\s+/g, ' ').trim() });
   })
   .post('/:id/ai/generate', async (c) => {
     await loadDocWithAccess(c, c.req.param('id'), 'edit');
-    requireAi(c);
+    const ai = requireAi(c);
     const input = await parseBody(c, generateSchema);
     let messages: ChatMessage[];
     try {
@@ -61,6 +66,15 @@ export const aiRoutes = new Hono<AppEnv>()
     } catch (err) {
       throw new ApiError(400, 'invalid_request', (err as Error).message);
     }
-    const markdown = await ask(c, messages, 2500);
-    return c.json({ markdown: markdown.trim() });
+    let result: ReturnType<typeof parseGenerateResult>;
+    try {
+      result = parseGenerateResult(await ai.completeJson(messages, GENERATE_SCHEMA, { maxTokens: 6000 }));
+    } catch (err) {
+      console.error('AI generation failed', err);
+      throw aiFailed();
+    }
+    const markdown = result.markdown.trim();
+    if (!markdown) throw aiFailed();
+    const hasSelection = Boolean(input.selection?.trim());
+    return c.json({ markdown, placement: resolvePlacement(input.action, hasSelection, result.placement) });
   });

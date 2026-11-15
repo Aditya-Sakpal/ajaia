@@ -39,4 +39,6 @@ export interface Repo {
   listShares(documentId: string): Promise<Share[]>;
   upsertShare(documentId: string, userId: string, role: Role): Promise<Share>;
   deleteShare(documentId: string, userId: string): Promise<void>;
+  /** Records that `userId` has the document open and returns everyone seen in the last `windowSeconds`. */
+  touchPresence(documentId: string, userId: string, windowSeconds: number): Promise<User[]>;
 }

@@ -101,4 +101,15 @@ export class MemoryRepo implements Repo {
   async deleteShare(documentId: string, userId: string) {
     this.shares.delete(`${documentId}:${userId}`);
   }
+
+  readonly presence = new Map<string, Date>(); // key: `${documentId}:${userId}`
+
+  async touchPresence(documentId: string, userId: string, windowSeconds: number): Promise<User[]> {
+    this.presence.set(`${documentId}:${userId}`, new Date());
+    const cutoff = Date.now() - windowSeconds * 1000;
+    return [...this.presence.entries()]
+      .filter(([k, seen]) => k.startsWith(`${documentId}:`) && seen.getTime() >= cutoff)
+      .map(([k]) => this.users.get(k.split(':')[1]!))
+      .filter((u): u is User => !!u);
+  }
 }

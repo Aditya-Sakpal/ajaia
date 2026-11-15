@@ -43,3 +43,18 @@ export const documentShares = pgTable(
     check('document_shares_role_check', sql`${t.role} in ('editor', 'viewer')`),
   ],
 );
+
+/** Who has a document open right now (heartbeat every few seconds). */
+export const documentPresence = pgTable(
+  'document_presence',
+  {
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    lastSeen: timestamp('last_seen', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.documentId, t.userId] })],
+);

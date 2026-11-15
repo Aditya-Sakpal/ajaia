@@ -37,6 +37,13 @@ The whole app is one Cloudflare Worker. Requests to `/api/*` run the Hono API (`
 | `Repo` interface with Postgres and in-memory implementations | API tests run the real Hono app quickly without a database | Two implementations to keep in step (covered by tests) |
 | Demo account picker instead of real auth | The brief allows simulated users; HMAC-signed cookies keep the session logic real | No passwords |
 
+## Lightweight live collaboration
+
+- **Presence:** `POST /api/documents/:id/presence` is a heartbeat every 4 s. It records `last_seen` in `document_presence`, returns who was seen in the last 15 s, and returns the current document version.
+- **Live pull:** an idle tab whose version is behind pulls the latest content and swaps it in without creating a save.
+- **Merging on conflict:** on a 409, the client runs a three-way merge of top-level blocks (`node-diff3`). The three inputs are the version both sides started from, its local content, and the server's content; JSON keys are put in a canonical order first. If the merge is clean, it saves the merged document at the server's version.
+- **Limits:** this is not real-time co-editing. Changes appear within a few seconds, and edits to the same paragraph still need a person to decide. Yjs on Durable Objects remains the next step.
+
 ## AI writing assistant
 
 - **Server:** `POST /api/documents/:id/ai/generate` and `/ai/complete` call OpenAI (`gpt-5.4-mini`, low reasoning effort) with `fetch` from the Worker.

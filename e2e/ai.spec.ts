@@ -10,7 +10,7 @@ test.describe('AI writing assistant', () => {
     const doc = await createDoc(alice.request, `AI chip ${stamp()}`, 'Kickoff with Bob about the pilot.');
     const { page } = alice;
     await page.route('**/ai/generate', (route) =>
-      route.fulfill({ json: { markdown: '## Meeting notes\n\n- **Owner:** Bob\n- Ship the pilot' } }),
+      route.fulfill({ json: { markdown: '## Meeting notes\n\n- **Owner:** Bob\n- Ship the pilot', placement: 'insert' } }),
     );
     await page.goto(`/d/${doc.id}`);
     await page.locator('.ProseMirror').click();
@@ -32,7 +32,7 @@ test.describe('AI writing assistant', () => {
     let sent: { selection?: string; prompt?: string } = {};
     await page.route('**/ai/generate', async (route) => {
       sent = route.request().postDataJSON();
-      await route.fulfill({ json: { markdown: 'The quick brown fox' } });
+      await route.fulfill({ json: { markdown: 'The quick brown fox', placement: 'replace_selection' } });
     });
     await page.goto(`/d/${doc.id}`);
     await page.locator('.ProseMirror').click();
@@ -42,6 +42,116 @@ test.describe('AI writing assistant', () => {
     await expect(page.locator('.ProseMirror')).toHaveText('The quick brown fox');
     expect(sent.selection).toBe('teh quick brwn fox');
     expect(sent.prompt).toBe('fix the typos');
+    await deleteDoc(alice.request, doc.id);
+    await alice.context.close();
+  });
+
+  test('a no-selection rewrite prompt replaces the whole document (no duplication) and one Undo restores it', async ({ browser }) => {
+    const alice = await asUser(browser, 'alice');
+    const original = 'This is a very long and wordy essay paragraph about artificial intelligence.';
+    const doc = await createDoc(alice.request, `AI replace ${stamp()}`, original);
+    const { page } = alice;
+    let sent: { selection?: string; prompt?: string } = {};
+    await page.route('**/ai/generate', async (route) => {
+      sent = route.request().postDataJSON();
+      await route.fulfill({ json: { markdown: '# AI essay\n\nAI is important.', placement: 'replace_document' } });
+    });
+    await page.goto(`/d/${doc.id}`);
+    await page.locator('.ProseMirror').click();
+    await page.getByLabel('Write with AI').fill('shorten the essay');
+    await page.getByRole('button', { name: 'Generate' }).click();
+    const body = page.locator('.ProseMirror');
+    await expect(body.locator('h1')).toHaveText('AI essay');
+    await expect(body).not.toContainText('very long and wordy');
+    await expect(body.locator('h1')).toHaveCount(1);
+    expect(sent.selection).toBeUndefined();
+    await page.keyboard.press('Control+z');
+    await expect(body).toContainText(original);
+    await expect(body.locator('h1')).toHaveCount(0);
+    await deleteDoc(alice.request, doc.id);
+    await alice.context.close();
+  });
+
+  test('a rewrite chip works without a selection and replaces the document', async ({ browser }) => {
+    const alice = await asUser(browser, 'alice');
+    const doc = await createDoc(alice.request, `AI chip rewrite ${stamp()}`, 'Teh documnet has typos.');
+    const { page } = alice;
+    let sent: { action?: string; selection?: string } = {};
+    await page.route('**/ai/generate', async (route) => {
+      sent = route.request().postDataJSON();
+      await route.fulfill({ json: { markdown: 'The document has typos.', placement: 'replace_document' } });
+    });
+    await page.goto(`/d/${doc.id}`);
+    await page.locator('.ProseMirror').click();
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('menuitem', { name: /Fix spelling & grammar \(whole document\)/ }).click();
+    await expect(page.locator('.ProseMirror')).toHaveText('The document has typos.');
+    expect(sent.action).toBe('fix_grammar');
+    expect(sent.selection).toBeUndefined();
+    await deleteDoc(alice.request, doc.id);
+    await alice.context.close();
+  });
+
+  test('an insert result is added after the existing text', async ({ browser }) => {
+    const alice = await asUser(browser, 'alice');
+    const doc = await createDoc(alice.request, `AI insert ${stamp()}`, 'First paragraph.');
+    const { page } = alice;
+    await page.route('**/ai/generate', (route) => route.fulfill({ json: { markdown: 'Second paragraph.', placement: 'insert' } }));
+    await page.goto(`/d/${doc.id}`);
+    await page.locator('.ProseMirror').click();
+    await page.keyboard.press('Control+End');
+    await page.getByRole('button', { name: 'Continue writing' }).click();
+    const body = page.locator('.ProseMirror');
+    await expect(body).toContainText('Second paragraph.');
+    await expect(body).toContainText('First paragraph.');
+    const text = (await body.innerText()).replace(/\s+/g, ' ');
+    expect(text.indexOf('First paragraph.')).toBeLessThan(text.indexOf('Second paragraph.'));
+    await deleteDoc(alice.request, doc.id);
+    await alice.context.close();
+  });
+
+  test('if the document changes while AI is writing, a replace is refused instead of clobbering', async ({ browser }) => {
+    const alice = await asUser(browser, 'alice');
+    const doc = await createDoc(alice.request, `AI stale ${stamp()}`, 'Original text.');
+    const { page } = alice;
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    await page.route('**/ai/generate', async (route) => {
+      await gate;
+      await route.fulfill({ json: { markdown: 'Rewritten.', placement: 'replace_document' } });
+    });
+    await page.goto(`/d/${doc.id}`);
+    await page.locator('.ProseMirror').click();
+    await page.getByLabel('Write with AI').fill('rewrite this');
+    await page.getByRole('button', { name: 'Generate' }).click();
+    await expect(page.getByText('Writing…')).toBeVisible();
+    await page.locator('.ProseMirror').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type(' typed meanwhile');
+    release();
+    await expect(page.getByText('The document changed while AI was writing. Try again.')).toBeVisible();
+    await expect(page.locator('.ProseMirror')).toContainText('Original text. typed meanwhile');
+    await deleteDoc(alice.request, doc.id);
+    await alice.context.close();
+  });
+
+  test('server errors are shown and the bar recovers', async ({ browser }) => {
+    const alice = await asUser(browser, 'alice');
+    const doc = await createDoc(alice.request, `AI error ${stamp()}`, 'Text.');
+    const { page } = alice;
+    let fail = true;
+    await page.route('**/ai/generate', (route) =>
+      fail
+        ? route.fulfill({ status: 502, json: { error: { code: 'ai_failed', message: 'The AI assistant could not respond. Please try again.' } } })
+        : route.fulfill({ json: { markdown: 'More text.', placement: 'insert' } }),
+    );
+    await page.goto(`/d/${doc.id}`);
+    await page.locator('.ProseMirror').click();
+    await page.getByRole('button', { name: 'Continue writing' }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'could not respond' })).toBeVisible();
+    fail = false;
+    await page.getByRole('button', { name: 'Continue writing' }).click();
+    await expect(page.locator('.ProseMirror')).toContainText('More text.');
     await deleteDoc(alice.request, doc.id);
     await alice.context.close();
   });

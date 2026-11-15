@@ -1,9 +1,9 @@
 import postgres from 'postgres';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
 import type { DocJSON, DocumentSummary, Role, Share, User } from '../../shared/types';
 import type { DocumentRecord, Repo, ShareRecord } from './repo';
-import { documents, documentShares, users } from './schema';
+import { documentPresence, documents, documentShares, users } from './schema';
 import { withTimeout } from '../lib/timeout';
 
 /** A stuck database call fails with a 503 after this long instead of hanging the request. */
@@ -152,5 +152,18 @@ export class PgRepo implements Repo {
     await this.db
       .delete(documentShares)
       .where(and(eq(documentShares.documentId, documentId), eq(documentShares.userId, userId)));
+  }
+
+  async touchPresence(documentId: string, userId: string, windowSeconds: number): Promise<User[]> {
+    await this.db
+      .insert(documentPresence)
+      .values({ documentId, userId })
+      .onConflictDoUpdate({ target: [documentPresence.documentId, documentPresence.userId], set: { lastSeen: sql`now()` } });
+    return this.db
+      .select(userCols)
+      .from(documentPresence)
+      .innerJoin(users, eq(users.id, documentPresence.userId))
+      .where(and(eq(documentPresence.documentId, documentId), gt(documentPresence.lastSeen, sql`now() - make_interval(secs => ${windowSeconds})`)))
+      .orderBy(asc(users.name));
   }
 }
